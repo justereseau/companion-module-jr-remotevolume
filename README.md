@@ -1,4 +1,4 @@
-# companion-module-uts-remotevolume
+# companion-module-jr-remotevolume
 
 See HELP.md and LICENSE
 

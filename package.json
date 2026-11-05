@@ -1,5 +1,5 @@
 {
-	"name": "uts-remotevolume",
+	"name": "jr-remotevolume",
 	"version": "1.2.1",
 	"main": "index.js",
 	"type": "module",
@@ -12,7 +12,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/Justereseau/companion-module-uts-remotevolume.git"
+		"url": "git+https://github.com/Justereseau/companion-module-jr-remotevolume.git"
 	},
 	"license": "MIT",
 	"dependencies": {
