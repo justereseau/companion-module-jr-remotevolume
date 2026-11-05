@@ -34,6 +34,13 @@
 			"groupName": "github actions"
 		},
 		{
+			"description": "All minor and patch updates (npm, Node, actions, digests) in a single PR, after the actions group so it wins for them. Majors keep their own PRs. The type is fix(deps) because the group usually carries runtime dependencies (ws, @companion-module/base) that ship in the module, so release-please cuts a patch release for it. Not automerged when it contains a runtime dependency.",
+			"matchUpdateTypes": ["minor", "patch", "digest", "pinDigest"],
+			"groupName": "all non-major dependencies",
+			"semanticCommitType": "fix",
+			"semanticCommitScope": "deps"
+		},
+		{
 			"description": "The Companion runtime ships a fixed Node version, @companion-module/base majors change the module API and @companion-module/tools 3 needs base 2 (it fails to build with base 1) – no automatic major bumps, update them by hand together",
 			"matchPackageNames": ["node", "@companion-module/base", "@companion-module/tools"],
 			"matchUpdateTypes": ["major"],
