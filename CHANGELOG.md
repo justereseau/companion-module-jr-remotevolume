@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.1](https://github.com/justereseau/companion-module-jr-remotevolume/compare/v1.3.0...v1.3.1) (2026-11-05)
+
+
+### Bug Fixes
+
+* **deps:** update all non-major dependencies ([82cf43a](https://github.com/justereseau/companion-module-jr-remotevolume/commit/82cf43a48bb7f9264ade62dc44ba5e6a513b2c11))
+* **deps:** update all non-major dependencies ([7023a19](https://github.com/justereseau/companion-module-jr-remotevolume/commit/7023a19df943b3719e36ad3af425091bf3065779))
+
 ## [1.3.0](https://github.com/justereseau/companion-module-jr-remotevolume/compare/v1.2.1...v1.3.0) (2026-11-05)
 
 
