@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.0](https://github.com/justereseau/companion-module-jr-remotevolume/compare/v1.4.0...v1.5.0) (2026-11-05)
+
+
+### Features
+
+* per-app volume and mute ([733709a](https://github.com/justereseau/companion-module-jr-remotevolume/commit/733709a9a484037cf7a8ec13801947351090b03d))
+* per-app volume and mute ([d3f9af2](https://github.com/justereseau/companion-module-jr-remotevolume/commit/d3f9af28a1f73b5e84491eef76220155662e0198)), closes [#26](https://github.com/justereseau/companion-module-jr-remotevolume/issues/26)
+
 ## [1.4.0](https://github.com/justereseau/companion-module-jr-remotevolume/compare/v1.3.1...v1.4.0) (2026-11-05)
 
 
