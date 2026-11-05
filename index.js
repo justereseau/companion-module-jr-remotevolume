@@ -4,6 +4,7 @@ import { getActionDefinitions } from './actions.js'
 import { variables } from './variables.js'
 import { getFeedbackDefinitions } from './feedbacks.js'
 import { getPresetDefinitions } from './presets.js'
+import { parseRawMessage } from './protocol.js'
 import WebSocket from 'ws'
 
 class HDMIVideoWallProcessor extends InstanceBase {
@@ -14,6 +15,8 @@ class HDMIVideoWallProcessor extends InstanceBase {
 	async init(config) {
 		this.config = config
 		this.muted = null
+		// Capabilities announced by the app (protocol v2). Kept for later, nothing uses them yet.
+		this.capabilities = null
 
 		this.setActionDefinitions(getActionDefinitions(this))
 		this.setFeedbackDefinitions(getFeedbackDefinitions(this))
@@ -85,125 +88,89 @@ class HDMIVideoWallProcessor extends InstanceBase {
 			}
 		})
 
-		this.ws.addEventListener('close', (code) => {
-			this.updateStatus(InstanceStatus.Disconnected, `Connection closed with code ${code}`)
+		this.ws.addEventListener('close', (event) => {
+			this.capabilities = null
+			this.updateStatus(InstanceStatus.Disconnected, `Connection closed with code ${event.code}`)
 			this.maybeReconnect()
 		})
 
-		this.ws.addEventListener('message', this.messageReceivedFromWebSocket.bind(this))
+		this.ws.addEventListener('message', (event) => this.messageReceivedFromWebSocket(event))
 
 		this.ws.addEventListener('error', (data) => {
 			this.log('error', data.message)
 		})
 	}
 
+	sendAction(message) {
+		if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+			this.log('warn', `Not connected, ignoring action ${message.action}`)
+			return
+		}
+		this.ws.send(JSON.stringify(message))
+	}
+
 	setVolume(vol) {
-		this.ws.send(
-			JSON.stringify({
-				action: 'setVolume',
-				value: vol,
-			})
-		)
+		this.sendAction({ action: 'setVolume', value: vol })
 	}
 
 	increaseVolume(vol) {
-		this.ws.send(
-			JSON.stringify({
-				action: 'increaseVolume',
-				value: vol,
-			})
-		)
+		this.sendAction({ action: 'increaseVolume', value: vol })
 	}
 
 	decreaseVolume(vol) {
-		this.ws.send(
-			JSON.stringify({
-				action: 'decreaseVolume',
-				value: vol,
-			})
-		)
+		this.sendAction({ action: 'decreaseVolume', value: vol })
 	}
 
 	mute() {
-		this.ws.send(
-			JSON.stringify({
-				action: 'mute',
-			})
-		)
+		this.sendAction({ action: 'mute' })
 	}
 
 	unmute() {
-		this.ws.send(
-			JSON.stringify({
-				action: 'unmute',
-			})
-		)
+		this.sendAction({ action: 'unmute' })
 	}
 
 	toggleMute() {
-		this.ws.send(
-			JSON.stringify({
-				action: 'toggleMute',
-			})
-		)
+		this.sendAction({ action: 'toggleMute' })
 	}
 
 	getState() {
-		this.ws.send(
-			JSON.stringify({
-				action: 'getState',
-			})
-		)
+		this.sendAction({ action: 'getState' })
 	}
 
-	parseStateObject(data) {
-		if ('muted' in data) {
-			this.muted = data.muted
-			this.setVariableValues({
-				muted: this.muted,
-			})
+	/**
+	 * Applies a message from the app: state fields, the capabilities of protocol v2 (stored only) and
+	 * errors. Keys this module does not know about are ignored.
+	 */
+	handleMessage({ state, capabilities, error }) {
+		if (error !== undefined) {
+			this.log('warn', `Remote Volume reported an error: ${error}`)
+			return
 		}
-		if ('volume' in data) {
-			this.volume = data.volume
-			this.setVariableValues({
-				volume: this.volume,
-			})
+
+		if (capabilities !== undefined) {
+			this.capabilities = capabilities
 		}
-		if ('outputDevice' in data) {
-			this.outputDevice = data.outputDevice
-			this.setVariableValues({
-				output_audio_device_name: this.outputDevice,
-			})
+		if ('muted' in state) {
+			this.muted = state.muted
+			this.setVariableValues({ muted: this.muted })
+		}
+		if ('volume' in state) {
+			this.volume = state.volume
+			this.setVariableValues({ volume: this.volume })
+		}
+		if ('outputDevice' in state) {
+			this.outputDevice = state.outputDevice
+			this.setVariableValues({ output_audio_device_name: this.outputDevice })
 		}
 
 		this.checkFeedbacks('muted')
 	}
 
-	async messageReceivedFromWebSocket(event) {
-		if (event && event.data) {
-			let msgValue = null
-			let textData = ''
-
-			try {
-				if (event.data instanceof Blob) {
-					textData = await event.data.text()
-				} else {
-					textData = event.data
-				}
-
-				if (textData.trim()) {
-					msgValue = JSON.parse(textData)
-
-					this.parseStateObject(msgValue)
-				} else {
-					console.error('Received empty or invalid JSON string.')
-				}
-			} catch (e) {
-				console.error('Error parsing JSON:', e)
-				console.error('Raw text data:', textData)
-			}
-		} else {
-			console.error('Received event with no data:', event)
+	messageReceivedFromWebSocket(event) {
+		try {
+			this.handleMessage(parseRawMessage(event.data))
+		} catch (e) {
+			this.log('error', `Could not process message from Remote Volume: ${e.message}`)
 		}
 	}
 

@@ -6,7 +6,7 @@ export function getFeedbackDefinitions(self) {
 			description: 'Check if the audio is currently muted',
 			options: [],
 			callback: (feedback) => {
-				return self.muted
+				return self.muted === true
 			},
 		},
 	}

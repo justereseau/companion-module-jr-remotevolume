@@ -10,6 +10,8 @@ You can download the latest release of the helper application, called [Remote Vo
 - For OSX: Download the corresponding .dmg file (x64 for Intel processors or ARM for Apple M Processors.), open the .dmg and drag&drop the app into your applications folder.
 - For Linux: Download and install the .deb file
 
+The module also works with the all-Rust rewrite of the helper application, [remote-volume](https://github.com/Justereseau/companion-remote-volume/releases/latest). Both speak the same WebSocket protocol on port 2501.
+
 After the Remote Volume application is installed, make sure that the application is running in the background, to ensure that Companion can connect to the application.
 
 In the module configuration, simply enter the IP address of the PC which is running the Remote Volume software and make sure that the 'port' setting in the module configuration matches the configured port in the Remote Volume application configuration window.
