@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.3.0](https://github.com/justereseau/companion-module-jr-remotevolume/compare/v1.2.1...v1.3.0) (2026-11-05)
+
+
+### Features
+
+* publish as its own module, jr-remotevolume ([f057b1f](https://github.com/justereseau/companion-module-jr-remotevolume/commit/f057b1fed5ebd3dc5f8052fe43f2b4635121fdd6))
+* publish as its own module, jr-remotevolume ([e0d8cc3](https://github.com/justereseau/companion-module-jr-remotevolume/commit/e0d8cc3a04d87e5e32fa159b540305b87c40e615))
+
+
+### Bug Fixes
+
+* point the repository links at companion-module-jr-remotevolume ([28b92a3](https://github.com/justereseau/companion-module-jr-remotevolume/commit/28b92a30720574fc5262533a501b65670519aead))
+* use JusteReseau: Remote Volume as the module name ([44ef0ba](https://github.com/justereseau/companion-module-jr-remotevolume/commit/44ef0bab96c6e40925125d3e45932428e107e6e8))
+
 ## [1.2.1](https://github.com/justereseau/companion-module-uts-remotevolume/compare/v1.2.0...v1.2.1) (2026-11-05)
 
 
