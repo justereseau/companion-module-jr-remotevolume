@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.1](https://github.com/justereseau/companion-module-uts-remotevolume/compare/v1.2.0...v1.2.1) (2026-11-05)
+
+
+### Bug Fixes
+
+* show the module as JusteReseau: Remote Volume ([238029a](https://github.com/justereseau/companion-module-uts-remotevolume/commit/238029a30b63736c22cb9a9dbb62b3e6f485abc9))
+* show the module as JusteReseau: Remote Volume ([36c2334](https://github.com/justereseau/companion-module-uts-remotevolume/commit/36c2334611301950b4bccee31373d005c9455421))
+
 ## [1.2.0](https://github.com/justereseau/companion-module-uts-remotevolume/compare/v1.1.0...v1.2.0) (2026-11-05)
 
 
