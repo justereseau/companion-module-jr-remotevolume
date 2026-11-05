@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.0](https://github.com/justereseau/companion-module-jr-remotevolume/compare/v1.3.1...v1.4.0) (2026-11-05)
+
+
+### Features
+
+* set the app's API key in the connection settings ([b3b0fcb](https://github.com/justereseau/companion-module-jr-remotevolume/commit/b3b0fcb57153ed3b1865f4e27bfc3b2b644f0fa7))
+* set the app's API key in the connection settings ([504589d](https://github.com/justereseau/companion-module-jr-remotevolume/commit/504589d0813b65ef0af24ae091b1efb1585d6caa))
+
 ## [1.3.1](https://github.com/justereseau/companion-module-jr-remotevolume/compare/v1.3.0...v1.3.1) (2026-11-05)
 
 
