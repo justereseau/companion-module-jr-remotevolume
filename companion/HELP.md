@@ -30,16 +30,22 @@ If you set an access token in the Remote Volume settings page (section **Access*
 
 If the app refuses the key, the connection shows an authentication failure and does not retry until you change the settings.
 
+### Adjust Volume
+
+`Adjust Volume` and `App: Adjust Volume` raise or lower the volume by a step in percentage points: a positive step raises it, a negative one lowers it (`5`, `-5`). The step accepts variables, so one button or knob can use a step set elsewhere. A step of 100 or more sets the volume to 100, and -100 or less sets it to 0.
+
+They replace the former Increase Volume and Decrease Volume actions; buttons that used those are converted when the module updates.
+
 ### Per-app volume and mute
 
 With a Remote Volume app that supports it (protocol v2, Windows and Linux), the module can control the volume and mute of each app playing audio:
 
-- **Actions:** `App: Set Volume`, `App: Increase Volume`, `App: Decrease Volume`, `App: Set Mute` (mute, unmute or toggle).
+- **Actions:** `App: Set Volume`, `App: Adjust Volume`, `App: Set Mute` (mute, unmute or toggle).
 - **Feedbacks:** `App: Muted`, and `App: Running` to grey out a button while the app plays nothing.
 - **Variables:** `apps` (the names of the apps playing audio), and `app_<id>_volume` / `app_<id>_muted` for each of them.
 - **Presets** (category _Apps_): a mute button and a volume knob for each app playing audio.
 
-An app is picked by its **id**: the program file name in lowercase, without `.exe` (`spotify`, `chrome`, `discord`). The dropdown lists the apps playing audio right now, and you can type an id for an app that is not running yet. All the sessions of a program (browser tabs, helper processes) count as one app.
+An app is picked by its **id**: the program file name in lowercase, without `.exe` (`spotify`, `chrome`, `discord`). The dropdown lists the apps playing audio right now, and you can type an id for an app that is not running yet. Tick **Pick the app with a variable** to enter the app as text instead, with variables (e.g. `$(custom:app)`): an id or a display name. All the sessions of a program (browser tabs, helper processes) count as one app. On Windows, the system sounds (notifications, alerts) are the app `system`.
 
 If the app is not running, Remote Volume answers `App not found` and the log shows it. With an older Remote Volume app, on macOS, or when per-app audio is turned off in the app's settings, the module sends nothing and logs it once.
 

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { appId, findApp, parseMessage, parseRawMessage, variableKey } from '../protocol.js'
+import { appId, findApp, parseMessage, parseRawMessage, variableKey, volumeStep } from '../protocol.js'
 
 const CAPABILITIES = {
 	protocolVersion: 2,
@@ -121,4 +121,16 @@ test('binary frames are decoded', () => {
 test('invalid JSON throws', () => {
 	assert.throws(() => parseRawMessage(''), SyntaxError)
 	assert.throws(() => parseRawMessage('{'), SyntaxError)
+})
+
+test('adjust steps: signed whole numbers, a trailing % allowed, anything else refused', () => {
+	assert.equal(volumeStep('5'), 5)
+	assert.equal(volumeStep(' -5 '), -5)
+	assert.equal(volumeStep('+5%'), 5)
+	assert.equal(volumeStep('-2.4'), -2)
+	assert.equal(volumeStep('0'), 0)
+	assert.equal(volumeStep(''), null)
+	assert.equal(volumeStep('%'), null)
+	assert.equal(volumeStep('loud'), null)
+	assert.equal(volumeStep(undefined), null)
 })

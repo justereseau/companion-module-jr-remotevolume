@@ -76,3 +76,12 @@ export async function until(condition, what, timeout = 3000) {
 		await new Promise((resolve) => setTimeout(resolve, 10))
 	}
 }
+
+/** Custom variables seen by {@link CONTEXT}. */
+export const CUSTOM_VARIABLES = { app: 'discord', step: '-3' }
+
+/** The context Companion passes to action and feedback callbacks: parses `$(custom:...)` only. */
+export const CONTEXT = {
+	parseVariablesInString: async (text) =>
+		text.replace(/\$\(custom:([\w-]+)\)/g, (_, name) => CUSTOM_VARIABLES[name] ?? ''),
+}

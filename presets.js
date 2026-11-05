@@ -18,8 +18,8 @@ export function getPresetDefinitions(self) {
 			{
 				down: [
 					{
-						actionId: 'increaseVolume',
-						options: { volume: 10 },
+						actionId: 'adjust_volume',
+						options: { value: '10' },
 					},
 				],
 			},
@@ -40,8 +40,8 @@ export function getPresetDefinitions(self) {
 			{
 				down: [
 					{
-						actionId: 'decreaseVolume',
-						options: { volume: 10 },
+						actionId: 'adjust_volume',
+						options: { value: '-10' },
 					},
 				],
 			},
@@ -119,8 +119,8 @@ export function getPresetDefinitions(self) {
 				{
 					down: [{ actionId: 'app_mute', options: { app: app.id, mute: 'toggle' } }],
 					up: [],
-					rotate_left: [{ actionId: 'app_decrease_volume', options: { app: app.id, volume: 5 } }],
-					rotate_right: [{ actionId: 'app_increase_volume', options: { app: app.id, volume: 5 } }],
+					rotate_left: [{ actionId: 'app_adjust_volume', options: { app: app.id, value: '-5' } }],
+					rotate_right: [{ actionId: 'app_adjust_volume', options: { app: app.id, value: '5' } }],
 				},
 			],
 			feedbacks: [muted],
