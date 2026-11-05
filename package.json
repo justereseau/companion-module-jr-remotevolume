@@ -16,8 +16,8 @@
 	},
 	"license": "MIT",
 	"dependencies": {
-		"@companion-module/base": "^1.11.0",
-		"ws": "^8.21.0"
+		"@companion-module/base": "^1.15.1",
+		"ws": "^8.22.1"
 	},
 	"devDependencies": {
 		"@companion-module/tools": "^2.9.1",
