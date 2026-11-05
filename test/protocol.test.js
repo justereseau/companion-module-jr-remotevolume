@@ -42,11 +42,17 @@ test('values of the wrong type are ignored', () => {
 
 test('action replies are unwrapped', () => {
 	assert.deepEqual(parseMessage({ action: 'isMuted', response: { muted: true } }).state, { muted: true })
-	assert.deepEqual(parseMessage({ action: 'getCapabilities', response: { capabilities: CAPABILITIES } }).capabilities, CAPABILITIES)
+	assert.deepEqual(
+		parseMessage({ action: 'getCapabilities', response: { capabilities: CAPABILITIES } }).capabilities,
+		CAPABILITIES,
+	)
 })
 
 test('errors are reported and carry no state', () => {
-	assert.equal(parseMessage({ action: 'mute', response: { error: 'Failed to execute action' } }).error, 'Failed to execute action')
+	assert.equal(
+		parseMessage({ action: 'mute', response: { error: 'Failed to execute action' } }).error,
+		'Failed to execute action',
+	)
 	assert.equal(parseMessage({ error: 'Invalid message' }).error, 'Invalid message')
 	assert.deepEqual(parseMessage({ error: 'x', volume: 5 }).state, {})
 })
