@@ -1,5 +1,5 @@
 {
-	"name": "uts-remotevolume",
+	"name": "jr-remotevolume",
 	"version": "1.2.1",
 	"main": "index.js",
 	"type": "module",

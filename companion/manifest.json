@@ -1,6 +1,6 @@
 {
-	"id": "uts-remotevolume",
-	"name": "uts-remotevolume",
+	"id": "jr-remotevolume",
+	"name": "jr-remotevolume",
 	"shortname": "Remote Volume",
 	"description": "Remote control the volume of Macs, Windows and Linux PCs",
 	"version": "1.2.1",
