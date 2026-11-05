@@ -6,3 +6,4 @@ CHANGELOG.md
 .release-please-manifest.json
 .github/workflows/companion-module-checks.yaml
 coverage
+companion/manifest.json
