@@ -8,12 +8,12 @@ afterEach(async () => {
 	while (cleanups.length) await cleanups.pop()()
 })
 
-async function connect(overrides = {}, serverOptions) {
+async function connect(overrides = {}, serverOptions, secrets) {
 	const server = await startServer(serverOptions)
 	cleanups.push(() => server.close())
 	const inst = createInstance()
 	cleanups.push(() => inst.destroy())
-	await inst.init({ targetIp: '127.0.0.1', targetPort: server.port, reconnect: false, ...overrides })
+	await inst.init({ targetIp: '127.0.0.1', targetPort: server.port, reconnect: false, ...overrides }, true, secrets)
 	inst.reconnectInterval = 50
 	return { server, inst }
 }
@@ -192,6 +192,52 @@ test('the config fields are the ones the module reads', () => {
 	const inst = createInstance()
 	assert.deepEqual(
 		inst.getConfigFields().map((field) => field.id),
-		['info', 'targetIp', 'targetPort', 'reconnect'],
+		['info', 'targetIp', 'targetPort', 'apiKey', 'reconnect'],
 	)
+})
+
+test('the API key is sent as a Bearer token, never in the URL', async () => {
+	const { server, inst } = await connect({}, { token: 's3cret' }, { apiKey: ' s3cret ' })
+	await until(() => inst.capabilities !== null, 'the initial state')
+
+	assert.deepEqual(server.handshakes, [{ url: '/', authorization: 'Bearer s3cret' }])
+	assert.equal(inst.statuses.at(-1)[0], InstanceStatus.Ok)
+})
+
+test('without an API key nothing is sent in the Authorization header', async () => {
+	const { server, inst } = await connect()
+	await until(() => inst.capabilities !== null, 'the initial state')
+	assert.equal(server.handshakes[0].authorization, undefined)
+})
+
+test('a refused API key is an authentication failure and is not retried', async () => {
+	const { server, inst } = await connect({ reconnect: true }, { token: 's3cret' }, { apiKey: 'wrong' })
+	await until(() => inst.statuses.some(([status]) => status === InstanceStatus.AuthenticationFailure), 'the failure')
+	await new Promise((resolve) => setTimeout(resolve, 300)) // several reconnect intervals
+
+	assert.deepEqual(inst.statuses.at(-1), [InstanceStatus.AuthenticationFailure, 'The app refused the API key'])
+	assert.equal(inst.reconnectTimer, null)
+	assert.equal(server.handshakes.length, 1, 'no new attempt without a config change')
+	assert.ok(inst.logs.some(([level, message]) => level === 'error' && message === 'The app refused the API key'))
+})
+
+test('a missing API key is reported as such', async () => {
+	const { inst } = await connect({}, { token: 's3cret' })
+	await until(() => inst.statuses.some(([status]) => status === InstanceStatus.AuthenticationFailure), 'the failure')
+	assert.equal(inst.statuses.at(-1)[1], 'The app requires an API key')
+})
+
+test('fixing the API key reconnects', async () => {
+	const { server, inst } = await connect({ reconnect: true }, { token: 's3cret' }, { apiKey: 'wrong' })
+	await until(() => inst.statuses.at(-1)[0] === InstanceStatus.AuthenticationFailure, 'the failure')
+
+	await inst.configUpdated({ targetIp: '127.0.0.1', targetPort: server.port, reconnect: true }, { apiKey: 's3cret' })
+	await until(() => inst.capabilities !== null, 'the state after fixing the key')
+	assert.equal(inst.statuses.at(-1)[0], InstanceStatus.Ok)
+})
+
+test('an API key with characters a header cannot carry is a bad configuration', async () => {
+	const { server, inst } = await connect({}, undefined, { apiKey: 'bad key\r\nX-Injected: 1' })
+	assert.deepEqual(inst.statuses, [[InstanceStatus.BadConfig, 'The API key contains invalid characters']])
+	assert.equal(server.handshakes.length, 0)
 })

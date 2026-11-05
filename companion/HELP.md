@@ -15,3 +15,9 @@ The module also works with the all-Rust rewrite of the helper application, [remo
 After the Remote Volume application is installed, make sure that the application is running in the background, to ensure that Companion can connect to the application.
 
 In the module configuration, simply enter the IP address of the PC which is running the Remote Volume software and make sure that the 'port' setting in the module configuration matches the configured port in the Remote Volume application configuration window.
+
+### API key
+
+If you set an access token in the Remote Volume app (Settings > WebSocket), enter the same value in the **API key** field of the connection. The module sends it as a Bearer token in the connection header, and Companion keeps it in its secret store. Leave the field empty when the app has no token.
+
+If the app refuses the key, the connection shows an authentication failure and does not retry until you change the settings.

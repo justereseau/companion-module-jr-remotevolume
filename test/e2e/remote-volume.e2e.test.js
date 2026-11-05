@@ -16,6 +16,8 @@ import { InstanceStatus } from '@companion-module/base'
 import { createInstance, until } from '../helpers.js'
 
 const RV_BIN = process.env.RV_BIN
+// The app runs with an access token, so the API key setting of the module is exercised too.
+const API_KEY = 'e2e-api-key-0123'
 
 async function freePort() {
 	return new Promise((resolve, reject) => {
@@ -69,12 +71,12 @@ describe('module against the real remote-volume app', { skip: !RV_BIN && 'set RV
 		settingsPort = await freePort()
 		await writeFile(
 			join(dir, 'config.json'),
-			JSON.stringify({ websocket: { port: wsPort, host: '127.0.0.1', token: '', allowedOrigins: [] } }),
+			JSON.stringify({ websocket: { port: wsPort, host: '127.0.0.1', token: API_KEY, allowedOrigins: [] } }),
 		)
 		await startApp()
 
 		inst = createInstance()
-		await inst.init({ targetIp: '127.0.0.1', targetPort: wsPort, reconnect: true })
+		await inst.init({ targetIp: '127.0.0.1', targetPort: wsPort, reconnect: true }, true, { apiKey: API_KEY })
 		inst.reconnectInterval = 200
 		await until(
 			() => 'volume' in inst.vars && 'muted' in inst.vars && 'output_audio_device_name' in inst.vars,
@@ -109,6 +111,22 @@ describe('module against the real remote-volume app', { skip: !RV_BIN && 'set RV
 		assert.equal(typeof inst.vars.output_audio_device_name, 'string')
 		assert.equal(inst.capabilities.protocolVersion, 2)
 		assert.deepEqual(inst.logs, [])
+	})
+
+	test('the app refuses a wrong or missing API key', async () => {
+		for (const secrets of [{ apiKey: 'not-the-key' }, {}]) {
+			const other = createInstance()
+			await other.init({ targetIp: '127.0.0.1', targetPort: wsPort, reconnect: true }, true, secrets)
+			try {
+				await until(
+					() => other.statuses.some(([status]) => status === InstanceStatus.AuthenticationFailure),
+					'the authentication failure',
+				)
+				assert.equal(other.capabilities, null)
+			} finally {
+				await other.destroy()
+			}
+		}
 	})
 
 	test('set volume', async () => {
