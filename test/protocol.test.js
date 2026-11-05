@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { parseMessage, parseRawMessage } from '../protocol.js'
+import { appId, findApp, parseMessage, parseRawMessage, variableKey } from '../protocol.js'
 
 const CAPABILITIES = {
 	protocolVersion: 2,
@@ -29,9 +29,57 @@ test('partial state broadcasts only carry what changed', () => {
 	assert.deepEqual(parseMessage({ outputDevice: 'Headphones' }).state, { outputDevice: 'Headphones' })
 })
 
-test('unknown keys (v2 lists, future fields) are ignored', () => {
-	const parsed = parseMessage({ volume: 10, apps: [{ id: 'spotify', volume: 40, muted: false }], outputDevices: [] })
+test('unknown keys (future lists and fields) are ignored', () => {
+	const parsed = parseMessage({ volume: 10, outputDevices: [], somethingNew: { a: 1 } })
 	assert.deepEqual(parsed.state, { volume: 10 })
+})
+
+test('the v2 apps list is parsed, skipping malformed entries', () => {
+	const parsed = parseMessage({
+		apps: [
+			{ id: 'spotify', name: 'Spotify', volume: 80, muted: false },
+			{ id: 'chrome', volume: 30, muted: true },
+			{ id: '', name: 'No id' },
+			{ name: 'Nameless' },
+			'discord',
+			null,
+			{ id: 'odd', name: 5, volume: '5', muted: 'yes' },
+		],
+	})
+	assert.deepEqual(parsed.state.apps, [
+		{ id: 'spotify', name: 'Spotify', volume: 80, muted: false },
+		{ id: 'chrome', name: 'chrome', volume: 30, muted: true },
+		{ id: 'odd', name: 'odd', volume: 0, muted: false },
+	])
+	assert.deepEqual(parseMessage({ apps: [] }).state, { apps: [] })
+	assert.deepEqual(parseMessage({ apps: null }).state, { apps: null }, 'turned off in the app')
+	assert.deepEqual(parseMessage({ apps: 'x' }).state, {})
+	assert.deepEqual(parseMessage({ action: 'getApps', response: { apps: [{ id: 'vlc' }] } }).state.apps, [
+		{ id: 'vlc', name: 'vlc', volume: 0, muted: false },
+	])
+})
+
+test('app ids are derived and matched like the app does', () => {
+	assert.equal(appId('Spotify.exe'), 'spotify')
+	assert.equal(appId('C:\\Program Files\\Discord\\Discord.EXE'), 'discord')
+	assert.equal(appId('/usr/bin/firefox'), 'firefox')
+	assert.equal(appId(' VLC '), 'vlc')
+	assert.equal(appId('.exe'), '.exe')
+
+	const apps = [
+		{ id: 'spotify', name: 'Spotify', volume: 80, muted: false },
+		{ id: 'msedge', name: 'Microsoft Edge', volume: 50, muted: true },
+	]
+	assert.equal(findApp(apps, 'SPOTIFY.exe'), apps[0])
+	assert.equal(findApp(apps, 'microsoft edge'), apps[1], 'by display name')
+	assert.equal(findApp(apps, 'discord'), undefined)
+	assert.equal(findApp(apps, '  '), undefined)
+	assert.equal(findApp(null, 'spotify'), undefined)
+	assert.equal(findApp(apps, undefined), undefined)
+
+	assert.equal(variableKey('spotify'), 'spotify')
+	assert.equal(variableKey('my app.bin'), 'my_app_bin')
+	assert.equal(variableKey('obs-64'), 'obs-64')
 })
 
 test('values of the wrong type are ignored', () => {

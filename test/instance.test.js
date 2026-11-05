@@ -241,3 +241,140 @@ test('an API key with characters a header cannot carry is a bad configuration', 
 	assert.deepEqual(inst.statuses, [[InstanceStatus.BadConfig, 'The API key contains invalid characters']])
 	assert.equal(server.handshakes.length, 0)
 })
+
+const APPS_CAPABILITIES = { ...CAPABILITIES, apps: { volume: true, mute: true } }
+const SPOTIFY = { id: 'spotify', name: 'Spotify', volume: 80, muted: false }
+const CHROME = { id: 'chrome', name: 'Google Chrome', volume: 70, muted: true }
+const withApps = (apps = [SPOTIFY, CHROME], capabilities = APPS_CAPABILITIES) => ({
+	initial: { volume: 65, muted: true, outputDevice: 'Speakers', apps, capabilities },
+})
+
+test('the apps list sets variables, app choices, presets and feedbacks', async () => {
+	const { inst } = await connect({}, withApps())
+	await until(() => inst.apps !== null, 'the apps list')
+
+	assert.deepEqual(inst.apps, [SPOTIFY, CHROME])
+	assert.equal(inst.vars.apps, 'Spotify, Google Chrome')
+	assert.equal(inst.vars.app_spotify_volume, 80)
+	assert.equal(inst.vars.app_chrome_muted, true)
+	assert.ok(inst.variableDefs.some((v) => v.variableId === 'app_chrome_volume'))
+	assert.deepEqual(
+		inst.actionDefs.app_mute.options[0].choices.map((c) => c.id),
+		['spotify', 'chrome'],
+	)
+	assert.equal(inst.presetDefs.filter((p) => p.category === 'Apps').length, 4)
+	assert.ok(inst.feedbackChecks.some((ids) => ids.includes('app_muted') && ids.includes('app_running')))
+	assert.equal(inst.feedbackDefs.app_muted.callback({ options: { app: 'chrome' } }), true)
+})
+
+test('definitions are rebuilt when an app comes or goes, not on a volume change', async () => {
+	const { server, inst } = await connect({}, withApps([SPOTIFY]))
+	await until(() => inst.apps !== null, 'the apps list')
+	const before = inst.actionDefs
+
+	server.broadcast({ apps: [{ ...SPOTIFY, volume: 20, muted: true }] })
+	await until(() => inst.vars.app_spotify_volume === 20, 'the volume change')
+	assert.equal(inst.actionDefs, before, 'same definitions object')
+	assert.equal(inst.vars.app_spotify_muted, true)
+
+	server.broadcast({ apps: [SPOTIFY, CHROME] })
+	await until(() => inst.vars.apps === 'Spotify, Google Chrome', 'the new app')
+	assert.notEqual(inst.actionDefs, before)
+	assert.equal(inst.actionDefs.app_mute.options[0].choices.length, 2)
+})
+
+test('apps turned off in the app (null) clears the list', async () => {
+	const { server, inst } = await connect({}, withApps())
+	await until(() => inst.apps !== null, 'the apps list')
+
+	server.broadcast({ apps: null })
+	await until(() => inst.apps === null, 'the cleared list')
+	assert.equal(inst.vars.apps, '')
+	assert.deepEqual(inst.actionDefs.app_mute.options[0].choices, [])
+	assert.ok(!inst.variableDefs.some((v) => v.variableId.startsWith('app_')))
+	assert.equal(inst.feedbackDefs.app_running.callback({ options: { app: 'spotify' } }), false)
+})
+
+test('app actions send the v2 messages', async () => {
+	const { server, inst } = await connect({}, withApps())
+	await until(() => inst.apps !== null, 'the apps list')
+	const run = (id, options) => inst.actionDefs[id].callback({ options })
+
+	await run('app_set_volume', { app: 'spotify', volume: 40 })
+	await run('app_increase_volume', { app: ' Spotify.exe ', volume: 5 })
+	await run('app_decrease_volume', { app: 'spotify', volume: 7 })
+	await run('app_mute', { app: 'discord', mute: 'mute' })
+	await run('app_mute', { app: 'discord', mute: 'unmute' })
+	await run('app_mute', { app: 'chrome', mute: 'toggle' })
+	await until(() => server.received.length === 6, 'all messages')
+
+	assert.deepEqual(server.received, [
+		{ action: 'setAppVolume', app: 'spotify', value: 40 },
+		{ action: 'increaseAppVolume', app: 'Spotify.exe', value: 5 },
+		{ action: 'decreaseAppVolume', app: 'spotify', value: 7 },
+		{ action: 'muteApp', app: 'discord' },
+		{ action: 'unmuteApp', app: 'discord' },
+		{ action: 'toggleAppMute', app: 'chrome' },
+	])
+
+	server.broadcast({ action: 'muteApp', response: { error: 'App not found' } })
+	await until(() => inst.logs.length === 1, 'the error')
+	assert.deepEqual(inst.logs, [['warn', 'Remote Volume reported an error: App not found']])
+})
+
+test('app actions are skipped, logged once per feature, when the app does not support them', async () => {
+	const { server, inst } = await connect(
+		{},
+		withApps(undefined, { ...CAPABILITIES, apps: { volume: true, mute: false } }),
+	)
+	await until(() => inst.apps !== null, 'the apps list')
+
+	inst.muteApp('spotify')
+	inst.toggleAppMute('spotify')
+	inst.setAppVolume('spotify', 10)
+	await until(() => server.received.length === 1, 'the supported action')
+
+	assert.deepEqual(server.received, [{ action: 'setAppVolume', app: 'spotify', value: 10 }])
+	assert.equal(inst.logs.length, 1)
+	assert.match(inst.logs[0][1], /does not support per-app mute .* Ignoring muteApp/)
+})
+
+test('a v1 app gets no app actions', async () => {
+	const { server, inst } = await connect({}, { initial: { volume: 20, muted: false, outputDevice: 'Headphones' } })
+	await until(() => inst.vars.volume === 20, 'the initial state')
+
+	inst.setAppVolume('spotify', 10)
+	inst.increaseAppVolume('spotify', 10)
+	inst.muteApp('spotify')
+	inst.getState()
+	await until(() => server.received.length === 1, 'getState')
+
+	assert.deepEqual(server.received, [{ action: 'getState' }])
+	assert.deepEqual(inst.logs, [
+		['warn', 'Per-app volume needs a newer Remote Volume app, ignoring setAppVolume'],
+		['warn', 'Per-app mute needs a newer Remote Volume app, ignoring muteApp'],
+	])
+	assert.equal(inst.apps, null)
+})
+
+test('app actions need an app and a connection', async () => {
+	const inst = createInstance()
+	inst.muteApp('  ')
+	inst.muteApp(undefined)
+	inst.muteApp('spotify')
+	assert.deepEqual(inst.logs, [
+		['warn', 'No app chosen, ignoring action muteApp'],
+		['warn', 'No app chosen, ignoring action muteApp'],
+		['warn', 'Not connected, ignoring action muteApp'],
+	])
+})
+
+test('losing the connection forgets the apps', async () => {
+	const { server, inst } = await connect({}, withApps())
+	await until(() => inst.apps !== null, 'the apps list')
+
+	server.dropClients(1001)
+	await until(() => inst.apps === null, 'the forgotten list')
+	assert.equal(inst.vars.apps, '')
+	assert.equal(inst.feedbackDefs.app_running.callback({ options: { app: 'spotify' } }), false)
+})
