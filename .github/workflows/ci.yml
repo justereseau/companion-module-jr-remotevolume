@@ -11,6 +11,11 @@ on:
 permissions:
   contents: read
 
+env:
+  # The app the e2e job builds and runs the module against. Bump it to test a newer app.
+  REMOTE_VOLUME_REPOSITORY: Justereseau/companion-remote-volume
+  REMOTE_VOLUME_REF: f8998a8718433e5c0ccf8c4de449767b3e69d1bb
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -35,6 +40,58 @@ jobs:
       # Fails below 90% lines, 80% branches, 90% functions.
       - name: Unit tests with coverage thresholds
         run: yarn test:coverage
+
+  # The real module code against the real all-Rust app, built from source, controlling a real audio
+  # backend (a PulseAudio null sink stands in for the sound card).
+  e2e:
+    name: End-to-end (real remote-volume app)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ env.REMOTE_VOLUME_REPOSITORY }}
+          ref: ${{ env.REMOTE_VOLUME_REF }}
+          path: remote-volume-app
+          persist-credentials: false
+
+      # libpulse for building, plus a virtual sound card: a PulseAudio null sink as default output.
+      - name: libpulse and a virtual sound card
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends libpulse-dev pulseaudio pulseaudio-utils
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=ci_sink
+          pactl set-default-sink ci_sink
+          pactl list short sinks
+
+      # core/rust-toolchain.toml selects the channel and components.
+      - name: Rust toolchain
+        working-directory: remote-volume-app/core
+        run: rustup toolchain install
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: remote-volume-app/core
+
+      - name: Build remote-volume
+        working-directory: remote-volume-app/core
+        run: cargo build --release --locked --bin remote-volume
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: yarn
+
+      - run: yarn install --frozen-lockfile --ignore-scripts
+      - name: End-to-end tests
+        env:
+          RV_BIN: ${{ github.workspace }}/remote-volume-app/core/target/release/remote-volume
+        run: yarn test:e2e
 
   format:
     name: Formatting
