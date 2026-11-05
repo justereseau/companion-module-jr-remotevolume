@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.0](https://github.com/justereseau/companion-module-jr-remotevolume/compare/v1.5.0...v1.6.0) (2026-11-05)
+
+
+### Features
+
+* one Adjust Volume action, and app picking by variable ([579d77e](https://github.com/justereseau/companion-module-jr-remotevolume/commit/579d77edb8e8aa24df184a72b4b9c804304f2e8c))
+* one Adjust Volume action, and app picking by variable ([5457aa3](https://github.com/justereseau/companion-module-jr-remotevolume/commit/5457aa303473ec7dd14a97ddac29e49fece69a6e))
+
 ## [1.5.0](https://github.com/justereseau/companion-module-jr-remotevolume/compare/v1.4.0...v1.5.0) (2026-11-05)
 
 

@@ -3,7 +3,7 @@
 	"name": "JusteReseau: Remote Volume",
 	"shortname": "Remote Volume",
 	"description": "Remote control the volume of Macs, Windows and Linux PCs",
-	"version": "1.5.0",
+	"version": "1.6.0",
 	"license": "MIT",
 	"repository": "git+https://github.com/Justereseau/companion-module-jr-remotevolume.git",
 	"bugs": "https://github.com/Justereseau/companion-module-jr-remotevolume/issues",
