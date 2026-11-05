@@ -12,7 +12,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/bitfocus/companion-module-uts-remotevolume.git"
+		"url": "git+https://github.com/Justereseau/companion-module-uts-remotevolume.git"
 	},
 	"license": "MIT",
 	"dependencies": {

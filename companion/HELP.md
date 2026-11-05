@@ -1,6 +1,6 @@
-## UTS Remote Volume Module
+## JusteReseau: Remote Volume
 
-This module is for controlling the Ultimate Technology Solutions Remote Volume application. This allows you to control the volume of PCs in the network by Companion.
+This module is for controlling the Remote Volume application. This allows you to control the volume of PCs in the network by Companion.
 
 For this module to work, a helper application must be installed on all PCs that are to be remote-controlled. This helper application enables communication between the PC and the Companion instance.
 
