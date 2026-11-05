@@ -3,6 +3,12 @@ name: Release
 on:
   push:
     branches: [main]
+  # Re-attach the package to an existing release (e.g. one made before this job existed).
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Build and attach the package to this existing release (e.g. v1.2.0)'
+        required: true
 
 permissions:
   contents: read
@@ -16,16 +22,63 @@ concurrency:
 # GITHUB_TOKEN, so the release PR does not trigger CI by itself: run the CI workflow manually on
 # its branch before merging. Needs Settings > Actions > General > "Allow GitHub Actions to create
 # and approve pull requests".
+# The module package (.tgz, import it on Companion's Modules page) is built from the tagged commit
+# and attached to the release.
 jobs:
   release-please:
     name: Release PR / tag
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
       issues: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        id: release
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  package:
+    name: Attach module package to release
+    needs: release-please
+    # always(): release-please is skipped on manual runs, which must not skip this job.
+    if: >-
+      always() &&
+      (needs.release-please.outputs.release_created == 'true' ||
+       (github.event_name == 'workflow_dispatch' && inputs.release_tag != ''))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.release-please.outputs.tag_name || inputs.release_tag }}
+    steps:
+      # Build exactly what was tagged.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name || inputs.release_tag }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: yarn
+
+      - run: yarn install --frozen-lockfile --ignore-scripts
+      - name: Build the module package
+        run: yarn companion-module-build
+
+      - name: Upload to the GitHub release
+        run: |
+          shopt -s nullglob
+          files=(uts-remotevolume-*.tgz)
+          if [[ ${#files[@]} -ne 1 ]]; then
+            echo "::error::Expected exactly one package, found: ${files[*]}"; exit 1
+          fi
+          sha256sum "${files[0]}" > SHA256SUMS.txt
+          gh release upload "$TAG" "${files[0]}" SHA256SUMS.txt --clobber --repo "$GITHUB_REPOSITORY"
