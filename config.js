@@ -31,7 +31,7 @@ export const ConfigFields = [
 		id: 'apiKey',
 		label: 'API key',
 		tooltip:
-			'The access token set in the Remote Volume app (Settings > WebSocket). Leave empty if the app has no token. Sent as a Bearer token in the connection header.',
+			'The access token set in the Remote Volume settings page (http://127.0.0.1:2502/, section Access). Leave empty if the app has no token. Sent as a Bearer token in the connection header.',
 		width: 12,
 	},
 	{
