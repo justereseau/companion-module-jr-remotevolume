@@ -1,0 +1,33 @@
+{
+	"$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+	"release-type": "node",
+	"include-component-in-tag": false,
+	"include-v-in-tag": true,
+	"bootstrap-sha": "7a3028b1dbcff4480bb7743f38c73a2f6f652baf",
+	"packages": {
+		".": {
+			"package-name": "uts-remotevolume",
+			"changelog-path": "CHANGELOG.md",
+			"extra-files": [
+				{
+					"type": "json",
+					"path": "companion/manifest.json",
+					"jsonpath": "$.version"
+				}
+			]
+		}
+	},
+	"changelog-sections": [
+		{ "type": "feat", "section": "Features" },
+		{ "type": "fix", "section": "Bug Fixes" },
+		{ "type": "perf", "section": "Performance" },
+		{ "type": "revert", "section": "Reverts" },
+		{ "type": "docs", "section": "Documentation", "hidden": true },
+		{ "type": "ci", "section": "CI", "hidden": true },
+		{ "type": "test", "section": "Tests", "hidden": true },
+		{ "type": "build", "section": "Build", "hidden": true },
+		{ "type": "chore", "section": "Miscellaneous", "hidden": true },
+		{ "type": "refactor", "section": "Refactoring", "hidden": true },
+		{ "type": "style", "section": "Style", "hidden": true }
+	]
+}

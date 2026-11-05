@@ -1,0 +1,31 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+# release-please keeps a release PR (version bump + CHANGELOG) up to date from the Conventional
+# Commits on main. Merging that PR creates the tag and the GitHub release. Uses the built-in
+# GITHUB_TOKEN, so the release PR does not trigger CI by itself: run the CI workflow manually on
+# its branch before merging. Needs Settings > Actions > General > "Allow GitHub Actions to create
+# and approve pull requests".
+jobs:
+  release-please:
+    name: Release PR / tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

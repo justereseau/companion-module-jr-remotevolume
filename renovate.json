@@ -1,0 +1,43 @@
+{
+	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
+	"extends": [
+		"config:recommended",
+		":dependencyDashboard",
+		"helpers:pinGitHubActionDigestsToSemver",
+		":maintainLockFilesWeekly",
+		"security:minimumReleaseAgeNpm",
+		":semanticCommits"
+	],
+	"forkProcessing": "enabled",
+	"labels": ["dependencies"],
+	"rangeStrategy": "bump",
+	"schedule": ["before 6am on monday"],
+	"prConcurrentLimit": 5,
+	"minimumReleaseAge": "3 days",
+	"osvVulnerabilityAlerts": true,
+	"vulnerabilityAlerts": {
+		"enabled": true,
+		"labels": ["security"],
+		"schedule": ["at any time"],
+		"minimumReleaseAge": null
+	},
+	"packageRules": [
+		{
+			"description": "Automerge non-major updates of dev tooling and actions once CI is green",
+			"matchDepTypes": ["devDependencies", "action"],
+			"matchUpdateTypes": ["minor", "patch", "digest", "pinDigest"],
+			"automerge": true
+		},
+		{
+			"description": "Group GitHub Actions",
+			"matchManagers": ["github-actions"],
+			"groupName": "github actions"
+		},
+		{
+			"description": "The Companion runtime ships a fixed Node version and @companion-module/base majors change the module API – no automatic major bumps, update them by hand",
+			"matchPackageNames": ["node", "@companion-module/base"],
+			"matchUpdateTypes": ["major"],
+			"enabled": false
+		}
+	]
+}
