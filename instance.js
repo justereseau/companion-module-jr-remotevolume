@@ -8,8 +8,9 @@ import { parseRawMessage } from './protocol.js'
 import WebSocket from 'ws'
 
 export class RemoteVolumeInstance extends InstanceBase {
-	async init(config) {
+	async init(config, _isFirstInit, secrets) {
 		this.config = config
+		this.secrets = secrets ?? {}
 		this.isInitialized = false
 		this.reconnectInterval = 5000
 		this.reconnectTimer = null
@@ -38,8 +39,9 @@ export class RemoteVolumeInstance extends InstanceBase {
 		}
 	}
 
-	async configUpdated(config) {
+	async configUpdated(config, secrets) {
 		this.config = config
+		this.secrets = secrets ?? {}
 		this.initWebSocket()
 	}
 
@@ -67,18 +69,27 @@ export class RemoteVolumeInstance extends InstanceBase {
 			return
 		}
 
+		// The API key goes in a header, not in the URL, so it does not end up in logs or proxies.
+		const apiKey = String(this.secrets?.apiKey ?? '').trim()
+		if (apiKey && !/^[!-~]+$/.test(apiKey)) {
+			this.updateStatus(InstanceStatus.BadConfig, 'The API key contains invalid characters')
+			return
+		}
+
 		this.updateStatus(InstanceStatus.Connecting)
+		this.authFailed = false
 
 		if (this.ws) {
 			this.ws.close(1000)
 			delete this.ws
 		}
-		this.ws = new WebSocket(url)
-		if (!this.ws) {
-			throw new Error('WebSocket initialization failed')
-		}
+		const ws = new WebSocket(url, apiKey ? { headers: { Authorization: `Bearer ${apiKey}` } } : undefined)
+		this.ws = ws
+		// Events of a socket that has been replaced or destroyed must not touch the current state.
+		const current = () => this.ws === ws
 
-		this.ws.addEventListener('open', () => {
+		ws.addEventListener('open', () => {
+			if (!current()) return
 			this.updateStatus(InstanceStatus.Ok)
 
 			if (this.reconnectTimer) {
@@ -87,15 +98,30 @@ export class RemoteVolumeInstance extends InstanceBase {
 			}
 		})
 
-		this.ws.addEventListener('close', (event) => {
+		ws.addEventListener('close', (event) => {
+			if (!current()) return
 			this.capabilities = null
+			// A refused key will not work on the next try either: wait for a config change.
+			if (this.authFailed) return
 			this.updateStatus(InstanceStatus.Disconnected, `Connection closed with code ${event.code}`)
 			this.maybeReconnect()
 		})
 
-		this.ws.addEventListener('message', (event) => this.messageReceivedFromWebSocket(event))
+		ws.addEventListener('message', (event) => {
+			if (current()) this.messageReceivedFromWebSocket(event)
+		})
 
-		this.ws.addEventListener('error', (data) => {
+		ws.addEventListener('error', (data) => {
+			if (!current()) return
+			if (/Unexpected server response: 401/.test(data.message)) {
+				this.authFailed = true
+				this.updateStatus(
+					InstanceStatus.AuthenticationFailure,
+					apiKey ? 'The app refused the API key' : 'The app requires an API key',
+				)
+				this.log('error', apiKey ? 'The app refused the API key' : 'The app requires an API key')
+				return
+			}
 			this.log('error', data.message)
 		})
 	}

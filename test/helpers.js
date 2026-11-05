@@ -8,10 +8,20 @@ export const CAPABILITIES = {
 }
 
 /** A Remote Volume app stand-in: sends the initial state on connect and records what it receives. */
-export async function startServer({ port = 0, initial } = {}) {
+export async function startServer({ port = 0, initial, token } = {}) {
 	const received = []
+	const handshakes = []
 	const sockets = new Set()
-	const wss = new WebSocketServer({ port, host: '127.0.0.1' })
+	const wss = new WebSocketServer({
+		port,
+		host: '127.0.0.1',
+		// Like the app: with a token configured, a missing or wrong Bearer token is refused with a 401.
+		verifyClient: ({ req }, done) => {
+			handshakes.push({ url: req.url, authorization: req.headers.authorization })
+			if (token && req.headers.authorization !== `Bearer ${token}`) done(false, 401, 'Invalid or missing token')
+			else done(true)
+		},
+	})
 	await new Promise((resolve) => wss.once('listening', resolve))
 	wss.on('connection', (socket) => {
 		sockets.add(socket)
@@ -25,6 +35,7 @@ export async function startServer({ port = 0, initial } = {}) {
 	return {
 		port: wss.address().port,
 		received,
+		handshakes,
 		broadcast: (message) => sockets.forEach((s) => s.send(text(message))),
 		sendBinary: (message) => sockets.forEach((s) => s.send(Buffer.from(text(message)), { binary: true })),
 		dropClients: (code = 1001) => sockets.forEach((s) => s.close(code)),

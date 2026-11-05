@@ -27,6 +27,14 @@ export const ConfigFields = [
 		regex: Regex.PORT,
 	},
 	{
+		type: 'secret-text',
+		id: 'apiKey',
+		label: 'API key',
+		tooltip:
+			'The access token set in the Remote Volume app (Settings > WebSocket). Leave empty if the app has no token. Sent as a Bearer token in the connection header.',
+		width: 12,
+	},
+	{
 		type: 'checkbox',
 		id: 'reconnect',
 		label: 'Reconnect',
