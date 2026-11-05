@@ -3,3 +3,4 @@
 .DS_STORE
 pkg.tgz
 *.tgz
+coverage

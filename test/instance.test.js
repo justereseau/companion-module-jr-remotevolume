@@ -14,6 +14,7 @@ async function connect(overrides = {}, serverOptions) {
 	const inst = createInstance()
 	cleanups.push(() => inst.destroy())
 	await inst.init({ targetIp: '127.0.0.1', targetPort: server.port, reconnect: false, ...overrides })
+	inst.reconnectInterval = 50
 	return { server, inst }
 }
 

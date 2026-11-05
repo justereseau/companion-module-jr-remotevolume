@@ -8,12 +8,11 @@ import { parseRawMessage } from './protocol.js'
 import WebSocket from 'ws'
 
 export class RemoteVolumeInstance extends InstanceBase {
-	isInitialized = false
-	reconnectInterval = 5000
-	reconnectTimer = null
-
 	async init(config) {
 		this.config = config
+		this.isInitialized = false
+		this.reconnectInterval = 5000
+		this.reconnectTimer = null
 		this.muted = null
 		// Capabilities announced by the app (protocol v2). Kept for later, nothing uses them yet.
 		this.capabilities = null

@@ -40,9 +40,6 @@ export async function startServer({ port = 0, initial } = {}) {
 export function createInstance() {
 	const inst = Object.create(RemoteVolumeInstance.prototype)
 	Object.assign(inst, {
-		isInitialized: false,
-		reconnectInterval: 50,
-		reconnectTimer: null,
 		statuses: [],
 		logs: [],
 		vars: {},
