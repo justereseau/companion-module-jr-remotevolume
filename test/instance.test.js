@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { afterEach, test } from 'node:test'
 import { InstanceStatus } from '@companion-module/base'
-import { CAPABILITIES, createInstance, startServer, until } from './helpers.js'
+import { CAPABILITIES, CONTEXT, createInstance, startServer, until } from './helpers.js'
 
 const cleanups = []
 afterEach(async () => {
@@ -60,11 +60,11 @@ test('state broadcasts update variables and the muted feedback', async () => {
 test('actions send the v1 messages', async () => {
 	const { server, inst } = await connect()
 	await until(() => inst.capabilities !== null, 'the initial state')
-	const run = (id, options = {}) => inst.actionDefs[id].callback({ options })
+	const run = (id, options = {}) => inst.actionDefs[id].callback({ options }, CONTEXT)
 
 	await run('set_volume', { volume: 30 })
-	await run('increaseVolume', { volume: 5 })
-	await run('decreaseVolume', { volume: 7 })
+	await run('adjust_volume', { value: '5' })
+	await run('adjust_volume', { value: '$(custom:step)' })
 	await run('mute', { mute: 'mute' })
 	await run('mute', { mute: 'unmute' })
 	await run('mute', { mute: 'toggle' })
@@ -74,7 +74,7 @@ test('actions send the v1 messages', async () => {
 	assert.deepEqual(server.received, [
 		{ action: 'setVolume', value: 30 },
 		{ action: 'increaseVolume', value: 5 },
-		{ action: 'decreaseVolume', value: 7 },
+		{ action: 'decreaseVolume', value: 3 },
 		{ action: 'mute' },
 		{ action: 'unmute' },
 		{ action: 'toggleMute' },
@@ -259,12 +259,12 @@ test('the apps list sets variables, app choices, presets and feedbacks', async (
 	assert.equal(inst.vars.app_chrome_muted, true)
 	assert.ok(inst.variableDefs.some((v) => v.variableId === 'app_chrome_volume'))
 	assert.deepEqual(
-		inst.actionDefs.app_mute.options[0].choices.map((c) => c.id),
+		inst.actionDefs.app_mute.options.find((o) => o.id === 'app').choices.map((c) => c.id),
 		['spotify', 'chrome'],
 	)
 	assert.equal(inst.presetDefs.filter((p) => p.category === 'Apps').length, 4)
 	assert.ok(inst.feedbackChecks.some((ids) => ids.includes('app_muted') && ids.includes('app_running')))
-	assert.equal(inst.feedbackDefs.app_muted.callback({ options: { app: 'chrome' } }), true)
+	assert.equal(await inst.feedbackDefs.app_muted.callback({ options: { app: 'chrome' } }, CONTEXT), true)
 })
 
 test('definitions are rebuilt when an app comes or goes, not on a volume change', async () => {
@@ -280,7 +280,7 @@ test('definitions are rebuilt when an app comes or goes, not on a volume change'
 	server.broadcast({ apps: [SPOTIFY, CHROME] })
 	await until(() => inst.vars.apps === 'Spotify, Google Chrome', 'the new app')
 	assert.notEqual(inst.actionDefs, before)
-	assert.equal(inst.actionDefs.app_mute.options[0].choices.length, 2)
+	assert.equal(inst.actionDefs.app_mute.options.find((o) => o.id === 'app').choices.length, 2)
 })
 
 test('apps turned off in the app (null) clears the list', async () => {
@@ -290,20 +290,20 @@ test('apps turned off in the app (null) clears the list', async () => {
 	server.broadcast({ apps: null })
 	await until(() => inst.apps === null, 'the cleared list')
 	assert.equal(inst.vars.apps, '')
-	assert.deepEqual(inst.actionDefs.app_mute.options[0].choices, [])
+	assert.deepEqual(inst.actionDefs.app_mute.options.find((o) => o.id === 'app').choices, [])
 	assert.ok(!inst.variableDefs.some((v) => v.variableId.startsWith('app_')))
-	assert.equal(inst.feedbackDefs.app_running.callback({ options: { app: 'spotify' } }), false)
+	assert.equal(await inst.feedbackDefs.app_running.callback({ options: { app: 'spotify' } }, CONTEXT), false)
 })
 
 test('app actions send the v2 messages', async () => {
 	const { server, inst } = await connect({}, withApps())
 	await until(() => inst.apps !== null, 'the apps list')
-	const run = (id, options) => inst.actionDefs[id].callback({ options })
+	const run = (id, options) => inst.actionDefs[id].callback({ options }, CONTEXT)
 
 	await run('app_set_volume', { app: 'spotify', volume: 40 })
-	await run('app_increase_volume', { app: ' Spotify.exe ', volume: 5 })
-	await run('app_decrease_volume', { app: 'spotify', volume: 7 })
-	await run('app_mute', { app: 'discord', mute: 'mute' })
+	await run('app_adjust_volume', { app: ' Spotify.exe ', value: '5' })
+	await run('app_adjust_volume', { app: 'spotify', value: '-7' })
+	await run('app_mute', { app: 'spotify', app_by_variable: true, app_variable: '$(custom:app)', mute: 'mute' })
 	await run('app_mute', { app: 'discord', mute: 'unmute' })
 	await run('app_mute', { app: 'chrome', mute: 'toggle' })
 	await until(() => server.received.length === 6, 'all messages')
@@ -376,5 +376,32 @@ test('losing the connection forgets the apps', async () => {
 	server.dropClients(1001)
 	await until(() => inst.apps === null, 'the forgotten list')
 	assert.equal(inst.vars.apps, '')
-	assert.equal(inst.feedbackDefs.app_running.callback({ options: { app: 'spotify' } }), false)
+	assert.equal(await inst.feedbackDefs.app_running.callback({ options: { app: 'spotify' } }, CONTEXT), false)
+})
+
+test('adjust volume: large steps set the volume, zero does nothing, text is refused', async () => {
+	const { server, inst } = await connect({}, withApps())
+	await until(() => inst.apps !== null, 'the apps list')
+
+	inst.adjustVolume('150')
+	inst.adjustVolume('-100')
+	inst.adjustVolume('0')
+	inst.adjustVolume('+4%')
+	inst.adjustVolume('2.6')
+	inst.adjustVolume('loud')
+	inst.adjustVolume('')
+	inst.adjustAppVolume('spotify', '-250')
+	await until(() => server.received.length === 5, 'all messages')
+
+	assert.deepEqual(server.received, [
+		{ action: 'setVolume', value: 100 },
+		{ action: 'setVolume', value: 0 },
+		{ action: 'increaseVolume', value: 4 },
+		{ action: 'increaseVolume', value: 3 },
+		{ action: 'setAppVolume', app: 'spotify', value: 0 },
+	])
+	assert.deepEqual(inst.logs, [
+		['warn', 'Ignoring Adjust Volume: "loud" is not a number (e.g. 5 or -5)'],
+		['warn', 'Ignoring Adjust Volume: "" is not a number (e.g. 5 or -5)'],
+	])
 })

@@ -104,6 +104,23 @@ export function findApp(apps, target) {
 }
 
 /**
+ * The step of an Adjust Volume action, typed or from a variable: a whole number of percentage
+ * points (`5`, `-5`, `+5`, `-5%`), or null when the text is not a number.
+ *
+ * @param {string} text
+ * @returns {number | null}
+ */
+export function volumeStep(text) {
+	const trimmed = String(text ?? '')
+		.trim()
+		.replace(/%$/, '')
+		.trim()
+	if (trimmed === '') return null
+	const value = Number(trimmed)
+	return Number.isFinite(value) ? Math.round(value) : null
+}
+
+/**
  * A Companion variable id for an app id (`app_<id>_volume`): anything but letters, digits, `_` and
  * `-` becomes `_`.
  *

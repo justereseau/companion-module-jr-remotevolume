@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, before, describe, test } from 'node:test'
 import { InstanceStatus } from '@companion-module/base'
-import { createInstance, until } from '../helpers.js'
+import { CONTEXT, createInstance, until } from '../helpers.js'
 
 const RV_BIN = process.env.RV_BIN
 // The app runs with an access token, so the API key setting of the module is exercised too.
@@ -134,12 +134,12 @@ describe('module against the real remote-volume app', { skip: !RV_BIN && 'set RV
 		await until(() => withinOne(inst.vars.volume, 33), 'volume 33')
 	})
 
-	test('increase and decrease volume', async () => {
+	test('adjust volume up and down', async () => {
 		const before = inst.vars.volume
-		await inst.actionDefs.increaseVolume.callback({ options: { volume: 5 } })
+		await inst.actionDefs.adjust_volume.callback({ options: { value: '5' } }, CONTEXT)
 		await until(() => withinOne(inst.vars.volume, before + 5), 'volume +5')
 		const raised = inst.vars.volume
-		await inst.actionDefs.decreaseVolume.callback({ options: { volume: 10 } })
+		await inst.actionDefs.adjust_volume.callback({ options: { value: '-10' } }, CONTEXT)
 		await until(() => withinOne(inst.vars.volume, raised - 10), 'volume -10')
 	})
 

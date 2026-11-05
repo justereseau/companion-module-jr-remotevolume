@@ -4,7 +4,7 @@ import { getActionDefinitions } from './actions.js'
 import { getVariableDefinitions } from './variables.js'
 import { getFeedbackDefinitions } from './feedbacks.js'
 import { getPresetDefinitions } from './presets.js'
-import { parseRawMessage, variableKey } from './protocol.js'
+import { parseRawMessage, variableKey, volumeStep } from './protocol.js'
 import WebSocket from 'ws'
 
 export class RemoteVolumeInstance extends InstanceBase {
@@ -160,6 +160,41 @@ export class RemoteVolumeInstance extends InstanceBase {
 
 	decreaseVolume(vol) {
 		this.sendAction({ action: 'decreaseVolume', value: vol })
+	}
+
+	/**
+	 * Raises (positive step) or lowers (negative step) the volume. The app takes steps of 1 to 99,
+	 * so a step of 100 or more sets the volume to 100 or 0.
+	 *
+	 * @param {string} step The step as typed or read from a variable, e.g. `5` or `-5`.
+	 */
+	adjustVolume(step) {
+		this.adjust(step, 'Adjust Volume', {
+			set: (vol) => this.setVolume(vol),
+			increase: (vol) => this.increaseVolume(vol),
+			decrease: (vol) => this.decreaseVolume(vol),
+		})
+	}
+
+	/** {@link adjustVolume} for one app. */
+	adjustAppVolume(app, step) {
+		this.adjust(step, 'App: Adjust Volume', {
+			set: (vol) => this.setAppVolume(app, vol),
+			increase: (vol) => this.increaseAppVolume(app, vol),
+			decrease: (vol) => this.decreaseAppVolume(app, vol),
+		})
+	}
+
+	adjust(step, name, send) {
+		const value = volumeStep(step)
+		if (value === null) {
+			this.log('warn', `Ignoring ${name}: "${step}" is not a number (e.g. 5 or -5)`)
+			return
+		}
+		if (value >= 100) send.set(100)
+		else if (value <= -100) send.set(0)
+		else if (value > 0) send.increase(value)
+		else if (value < 0) send.decrease(-value)
 	}
 
 	mute() {
