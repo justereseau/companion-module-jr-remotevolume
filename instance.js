@@ -1,10 +1,10 @@
 import { InstanceBase, InstanceStatus } from '@companion-module/base'
 import { ConfigFields } from './config.js'
 import { getActionDefinitions } from './actions.js'
-import { variables } from './variables.js'
+import { getVariableDefinitions } from './variables.js'
 import { getFeedbackDefinitions } from './feedbacks.js'
 import { getPresetDefinitions } from './presets.js'
-import { parseRawMessage } from './protocol.js'
+import { parseRawMessage, variableKey } from './protocol.js'
 import WebSocket from 'ws'
 
 export class RemoteVolumeInstance extends InstanceBase {
@@ -15,16 +15,27 @@ export class RemoteVolumeInstance extends InstanceBase {
 		this.reconnectInterval = 5000
 		this.reconnectTimer = null
 		this.muted = null
-		// Capabilities announced by the app (protocol v2). Kept for later, nothing uses them yet.
+		// Capabilities announced by the app (protocol v2); null for a v1 app or while disconnected.
 		this.capabilities = null
+		// Apps playing audio (protocol v2); null while unknown, unsupported or turned off in the app.
+		this.apps = null
+		// The ids and names the current definitions were built from, to rebuild them only when those change.
+		this.appsSignature = appsSignature(null)
+		// Features already reported as unsupported, so a busy button does not flood the log.
+		this.unsupportedLogged = new Set()
 
-		this.setActionDefinitions(getActionDefinitions(this))
-		this.setFeedbackDefinitions(getFeedbackDefinitions(this))
-		this.setPresetDefinitions(getPresetDefinitions(this))
-		this.setVariableDefinitions(variables)
+		this.updateDefinitions()
 
 		this.initWebSocket()
 		this.isInitialized = true
+	}
+
+	/** (Re)builds the definitions that depend on the list of apps (dropdown choices, variables, presets). */
+	updateDefinitions() {
+		this.setActionDefinitions(getActionDefinitions(this))
+		this.setFeedbackDefinitions(getFeedbackDefinitions(this))
+		this.setPresetDefinitions(getPresetDefinitions(this))
+		this.setVariableDefinitions(getVariableDefinitions(this.apps))
 	}
 
 	async destroy() {
@@ -101,6 +112,7 @@ export class RemoteVolumeInstance extends InstanceBase {
 		ws.addEventListener('close', (event) => {
 			if (!current()) return
 			this.capabilities = null
+			this.setApps(null)
 			// A refused key will not work on the next try either: wait for a config change.
 			if (this.authFailed) return
 			this.updateStatus(InstanceStatus.Disconnected, `Connection closed with code ${event.code}`)
@@ -126,8 +138,12 @@ export class RemoteVolumeInstance extends InstanceBase {
 		})
 	}
 
+	isConnected() {
+		return this.ws !== undefined && this.ws.readyState === WebSocket.OPEN
+	}
+
 	sendAction(message) {
-		if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+		if (!this.isConnected()) {
 			this.log('warn', `Not connected, ignoring action ${message.action}`)
 			return
 		}
@@ -163,7 +179,84 @@ export class RemoteVolumeInstance extends InstanceBase {
 	}
 
 	/**
-	 * Applies a message from the app: state fields, the capabilities of protocol v2 (stored only) and
+	 * Sends a per-app action (protocol v2) when the app supports `feature` (`volume` or `mute`).
+	 * Otherwise logs once and sends nothing: a v1 app would answer `Invalid action`.
+	 */
+	sendAppAction(action, feature, app, value) {
+		const target = String(app ?? '').trim()
+		if (target === '') {
+			this.log('warn', `No app chosen, ignoring action ${action}`)
+			return
+		}
+		if (!this.isConnected()) {
+			this.log('warn', `Not connected, ignoring action ${action}`)
+			return
+		}
+		if (this.capabilities?.apps?.[feature] !== true) {
+			if (!this.unsupportedLogged.has(feature)) {
+				this.unsupportedLogged.add(feature)
+				this.log(
+					'warn',
+					this.capabilities === null
+						? `Per-app ${feature} needs a newer Remote Volume app, ignoring ${action}`
+						: `The Remote Volume app does not support per-app ${feature} on this computer, or it is turned off in its settings. Ignoring ${action}`,
+				)
+			}
+			return
+		}
+		this.sendAction(value === undefined ? { action, app: target } : { action, app: target, value })
+	}
+
+	setAppVolume(app, vol) {
+		this.sendAppAction('setAppVolume', 'volume', app, vol)
+	}
+
+	increaseAppVolume(app, vol) {
+		this.sendAppAction('increaseAppVolume', 'volume', app, vol)
+	}
+
+	decreaseAppVolume(app, vol) {
+		this.sendAppAction('decreaseAppVolume', 'volume', app, vol)
+	}
+
+	muteApp(app) {
+		this.sendAppAction('muteApp', 'mute', app)
+	}
+
+	unmuteApp(app) {
+		this.sendAppAction('unmuteApp', 'mute', app)
+	}
+
+	toggleAppMute(app) {
+		this.sendAppAction('toggleAppMute', 'mute', app)
+	}
+
+	/**
+	 * Applies a new `apps` list: variables and feedbacks always, the definitions only when an app
+	 * appeared, went away or was renamed (not on every volume change).
+	 *
+	 * @param {import('./protocol.js').App[] | null} apps
+	 */
+	setApps(apps) {
+		if (this.apps === null && apps === null) return
+		this.apps = apps
+		const signature = appsSignature(apps)
+		if (signature !== this.appsSignature) {
+			this.appsSignature = signature
+			this.updateDefinitions()
+		}
+		const values = { apps: (apps ?? []).map((app) => app.name).join(', ') }
+		for (const app of apps ?? []) {
+			const key = variableKey(app.id)
+			values[`app_${key}_volume`] = app.volume
+			values[`app_${key}_muted`] = app.muted
+		}
+		this.setVariableValues(values)
+		this.checkFeedbacks('app_muted', 'app_running')
+	}
+
+	/**
+	 * Applies a message from the app: state fields, the capabilities and app list of protocol v2, and
 	 * errors. Keys this module does not know about are ignored.
 	 */
 	handleMessage({ state, capabilities, error }) {
@@ -174,6 +267,10 @@ export class RemoteVolumeInstance extends InstanceBase {
 
 		if (capabilities !== undefined) {
 			this.capabilities = capabilities
+			this.unsupportedLogged.clear()
+		}
+		if ('apps' in state) {
+			this.setApps(state.apps)
 		}
 		if ('muted' in state) {
 			this.muted = state.muted
@@ -202,4 +299,9 @@ export class RemoteVolumeInstance extends InstanceBase {
 	getConfigFields() {
 		return ConfigFields
 	}
+}
+
+/** @param {import('./protocol.js').App[] | null} apps */
+function appsSignature(apps) {
+	return JSON.stringify((apps ?? []).map((app) => [app.id, app.name]))
 }

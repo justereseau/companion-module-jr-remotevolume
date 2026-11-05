@@ -1,4 +1,5 @@
 import { combineRgb } from '@companion-module/base'
+import { variableKey } from './protocol.js'
 
 export function getPresetDefinitions(self) {
 	const presets = []
@@ -80,6 +81,51 @@ export function getPresetDefinitions(self) {
 			},
 		],
 	})
+
+	// Per-app presets for the apps playing audio right now; they follow the list as it changes.
+	const label = self.label ?? 'jr-remotevolume'
+	for (const app of self.apps ?? []) {
+		const volume = `$(${label}:app_${variableKey(app.id)}_volume)`
+		const muted = {
+			feedbackId: 'app_muted',
+			options: { app: app.id },
+			style: { bgcolor: combineRgb(255, 0, 0), color: combineRgb(255, 255, 255) },
+		}
+		presets.push({
+			category: 'Apps',
+			name: `${app.name}: Toggle Mute`,
+			type: 'button',
+			style: {
+				text: `${app.name}\n${volume}%`,
+				size: '14',
+				bgcolor: combineRgb(0, 0, 0),
+				color: combineRgb(255, 255, 255),
+			},
+			steps: [{ down: [{ actionId: 'app_mute', options: { app: app.id, mute: 'toggle' } }], up: [] }],
+			feedbacks: [muted],
+		})
+		presets.push({
+			category: 'Apps',
+			name: `${app.name}: Volume knob`,
+			type: 'button',
+			options: { rotaryActions: true },
+			style: {
+				text: `${app.name}\n${volume}%`,
+				size: '14',
+				bgcolor: combineRgb(0, 0, 0),
+				color: combineRgb(255, 255, 255),
+			},
+			steps: [
+				{
+					down: [{ actionId: 'app_mute', options: { app: app.id, mute: 'toggle' } }],
+					up: [],
+					rotate_left: [{ actionId: 'app_decrease_volume', options: { app: app.id, volume: 5 } }],
+					rotate_right: [{ actionId: 'app_increase_volume', options: { app: app.id, volume: 5 } }],
+				},
+			],
+			feedbacks: [muted],
+		})
+	}
 
 	return presets
 }

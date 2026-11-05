@@ -6,13 +6,15 @@
  * Messages from the app are one of:
  *  - a (possibly partial) state object: `{"volume":40,"muted":false,"outputDevice":"Speakers"}`.
  *    The state sent right after connecting may end with `"capabilities":{...}` (protocol v2).
+ *    Protocol v2 also sends `"apps":[{"id":"spotify","name":"Spotify","volume":80,"muted":false}]`,
+ *    always the whole list.
  *  - an action reply: `{"action":"mute","response":{...}}`, where `response.error` reports a failure.
  *  - an error without an action: `{"error":"..."}`.
  */
 
 /**
  * @typedef {object} ParsedMessage
- * @property {{ volume?: number, muted?: boolean, outputDevice?: string }} state Fields to apply to the module state.
+ * @property {{ volume?: number, muted?: boolean, outputDevice?: string, apps?: App[] | null }} state Fields to apply to the module state.
  * @property {object | undefined} capabilities The `capabilities` object (protocol v2), if the message carried one.
  * @property {string | undefined} error An error text reported by the app, if any.
  */
@@ -38,9 +40,77 @@ export function parseMessage(message) {
 	if (typeof payload.muted === 'boolean') result.state.muted = payload.muted
 	if (typeof payload.volume === 'number') result.state.volume = payload.volume
 	if (typeof payload.outputDevice === 'string') result.state.outputDevice = payload.outputDevice
+	if (Array.isArray(payload.apps)) result.state.apps = parseApps(payload.apps)
+	// `null`: the app had a list and per-app audio is now off or unavailable.
+	else if (payload.apps === null) result.state.apps = null
 	if (isObject(payload.capabilities)) result.capabilities = payload.capabilities
 
 	return result
+}
+
+/**
+ * @typedef {object} App
+ * @property {string} id Lowercased executable name without `.exe` (`spotify`).
+ * @property {string} name Display name.
+ * @property {number} volume 0–100.
+ * @property {boolean} muted
+ */
+
+/**
+ * Keeps the well-formed entries of an `apps` list (protocol v2), skipping the others.
+ *
+ * @param {unknown[]} list
+ * @returns {App[]}
+ */
+export function parseApps(list) {
+	const apps = []
+	for (const entry of list) {
+		if (!isObject(entry) || typeof entry.id !== 'string' || entry.id === '') continue
+		apps.push({
+			id: entry.id,
+			name: typeof entry.name === 'string' && entry.name !== '' ? entry.name : entry.id,
+			volume: typeof entry.volume === 'number' ? entry.volume : 0,
+			muted: entry.muted === true,
+		})
+	}
+	return apps
+}
+
+/**
+ * The app id the Remote Volume app would derive from a name typed by the user: the file name,
+ * lowercased, without `.exe` (`C:\...\Spotify.exe` → `spotify`).
+ *
+ * @param {string} name
+ */
+export function appId(name) {
+	const base = String(name).split(/[\\/]/).pop().trim().toLowerCase()
+	const stripped = base.endsWith('.exe') ? base.slice(0, -4) : base
+	return stripped === '' ? base : stripped
+}
+
+/**
+ * Finds an app the way the Remote Volume app does: by id in any spelling, then by display name,
+ * ignoring case.
+ *
+ * @param {App[] | null} apps
+ * @param {string} target
+ * @returns {App | undefined}
+ */
+export function findApp(apps, target) {
+	if (!apps || typeof target !== 'string' || target.trim() === '') return undefined
+	const id = appId(target)
+	const name = target.trim().toLowerCase()
+	return apps.find((app) => app.id === id) ?? apps.find((app) => app.name.toLowerCase() === name)
+}
+
+/**
+ * A Companion variable id for an app id (`app_<id>_volume`): anything but letters, digits, `_` and
+ * `-` becomes `_`.
+ *
+ * @param {string} id
+ */
+export function variableKey(id) {
+	return id.replace(/[^A-Za-z0-9_-]/g, '_')
 }
 
 /**

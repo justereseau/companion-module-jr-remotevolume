@@ -50,6 +50,8 @@ export async function startServer({ port = 0, initial, token } = {}) {
 /** An instance with the Companion-provided methods replaced by recorders (no IPC needed). */
 export function createInstance() {
 	const inst = Object.create(RemoteVolumeInstance.prototype)
+	// The connection label, normally set up by the base class constructor (used in preset texts).
+	Object.defineProperty(inst, 'label', { value: 'rv' })
 	Object.assign(inst, {
 		statuses: [],
 		logs: [],
