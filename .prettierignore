@@ -1,0 +1,7 @@
+node_modules
+pkg
+*.tgz
+yarn.lock
+CHANGELOG.md
+.release-please-manifest.json
+.github/workflows/companion-module-checks.yaml

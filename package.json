@@ -4,7 +4,10 @@
 	"main": "index.js",
 	"type": "module",
 	"scripts": {
-		"test": "node --test \"test/*.test.js\""
+		"test": "node --test \"test/*.test.js\"",
+		"test:coverage": "node --test --experimental-test-coverage --test-coverage-include=actions.js --test-coverage-include=config.js --test-coverage-include=feedbacks.js --test-coverage-include=instance.js --test-coverage-include=presets.js --test-coverage-include=protocol.js --test-coverage-include=variables.js --test-coverage-lines=90 --test-coverage-branches=80 --test-coverage-functions=90 \"test/*.test.js\"",
+		"format": "prettier --write .",
+		"format:check": "prettier --check ."
 	},
 	"repository": {
 		"type": "git",
@@ -16,6 +19,7 @@
 		"ws": "^8.21.0"
 	},
 	"devDependencies": {
-		"@companion-module/tools": "^2.8.0"
+		"@companion-module/tools": "^2.8.0",
+		"prettier": "^3.9.10"
 	}
 }

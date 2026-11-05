@@ -21,12 +21,6 @@
 		"entrypoint": "../index.js"
 	},
 	"manufacturer": "UTS",
-	"products": [
-		"Remote Volume"
-	],
-	"keywords": [
-		"Volume",
-		"Loudness",
-		"Speaker"
-	]
+	"products": ["Remote Volume"],
+	"keywords": ["Volume", "Loudness", "Speaker"]
 }

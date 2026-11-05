@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   test:
-    name: Unit tests
+    name: Unit tests with coverage
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -31,7 +31,26 @@ jobs:
 
       # Install scripts are not needed for unit tests.
       - run: yarn install --frozen-lockfile --ignore-scripts
-      - run: yarn test
+      # The unit tests drive the module against a fake Remote Volume app (a local WebSocket server).
+      # Fails below 90% lines, 80% branches, 90% functions.
+      - name: Unit tests with coverage thresholds
+        run: yarn test:coverage
+
+  format:
+    name: Formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: yarn
+
+      - run: yarn install --frozen-lockfile --ignore-scripts
+      - run: yarn format:check
 
   audit:
     name: Audit dependencies
