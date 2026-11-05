@@ -34,8 +34,8 @@
 			"groupName": "github actions"
 		},
 		{
-			"description": "The Companion runtime ships a fixed Node version and @companion-module/base majors change the module API – no automatic major bumps, update them by hand",
-			"matchPackageNames": ["node", "@companion-module/base"],
+			"description": "The Companion runtime ships a fixed Node version, @companion-module/base majors change the module API and @companion-module/tools 3 needs base 2 (it fails to build with base 1) – no automatic major bumps, update them by hand together",
+			"matchPackageNames": ["node", "@companion-module/base", "@companion-module/tools"],
 			"matchUpdateTypes": ["major"],
 			"enabled": false
 		}
