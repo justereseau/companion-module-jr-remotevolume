@@ -77,6 +77,7 @@ test('action callbacks pass the options on to the instance', async () => {
 	await run('app_mute', { app: 'chrome', mute: 'unmute' })
 	await run('app_mute', { app: 'chrome', mute: 'toggle' })
 	await run('media_key', { key: 'next' })
+	await run('function_key', { key: 13 })
 	assert.deepEqual(calls, [
 		['setVolume', 1],
 		['adjustVolume', '2'],
@@ -90,6 +91,7 @@ test('action callbacks pass the options on to the instance', async () => {
 		['unmuteApp', 'chrome'],
 		['toggleAppMute', 'chrome'],
 		['pressMediaKey', 'next'],
+		['pressFunctionKey', 13],
 	])
 })
 
@@ -189,6 +191,14 @@ test('the app feedbacks find the app by id, name or variable, and are false whil
 	self.apps = [...APPS, { id: 'discord', name: 'Discord', volume: 50, muted: true }]
 	const byVariable = { options: { app: 'spotify', app_by_variable: true, app_variable: '$(custom:app)' } }
 	assert.equal(await app_muted.callback(byVariable, CONTEXT), true)
+})
+
+test('the function key picker lists F1 to F24, F13 by default', () => {
+	const option = actions.function_key.options[0]
+	assert.equal(option.default, 13)
+	assert.equal(option.choices.length, 24)
+	assert.deepEqual(option.choices[0], { id: 1, label: 'F1' })
+	assert.deepEqual(option.choices[23], { id: 24, label: 'F24' })
 })
 
 test('presets: previous, play / pause and next media keys', () => {

@@ -172,6 +172,23 @@ export function getActionDefinitions(self) {
 				self.pressMediaKey(action.options.key)
 			},
 		},
+		function_key: {
+			name: 'Function Key',
+			description:
+				'Press a function key (F1 to F24) on the computer, like on its keyboard: the focused window gets it, or the app that uses it as a global hotkey. F13 to F24 make good hotkeys. Needs function keys in the Remote Volume app (protocol v2, on Windows or Linux with X11); otherwise nothing is sent.',
+			options: [
+				{
+					type: 'dropdown',
+					id: 'key',
+					label: 'Key',
+					default: 13,
+					choices: Array.from({ length: 24 }, (_, i) => ({ id: i + 1, label: `F${i + 1}` })),
+				},
+			],
+			callback: async (action) => {
+				self.pressFunctionKey(action.options.key)
+			},
+		},
 		getState: {
 			name: 'Get latest Data',
 			description: 'Retrieve the latest information manually if polling is disabled',

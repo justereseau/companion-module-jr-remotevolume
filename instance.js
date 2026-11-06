@@ -252,23 +252,47 @@ export class RemoteVolumeInstance extends InstanceBase {
 			this.log('warn', `Unknown media key ${key}`)
 			return
 		}
+		this.sendKeyAction({ action }, this.capabilities?.media?.keys === true, 'media keys')
+	}
+
+	/**
+	 * Presses the function key F`number` (1-24) on the computer, like on its keyboard, when the app
+	 * supports it (protocol v2, `keyboard.functionKeys`). Otherwise logs once and sends nothing.
+	 */
+	pressFunctionKey(number) {
+		const value = Number(number)
+		if (!Number.isInteger(value) || value < 1 || value > 24) {
+			this.log('warn', `Unknown function key F${number}`)
+			return
+		}
+		this.sendKeyAction(
+			{ action: 'pressFunctionKey', value },
+			this.capabilities?.keyboard?.functionKeys === true,
+			'function keys',
+		)
+	}
+
+	/** Sends a key action when `supported`; otherwise logs once per `what` (e.g. `media keys`). */
+	sendKeyAction(message, supported, what) {
+		const { action } = message
 		if (!this.isConnected()) {
 			this.log('warn', `Not connected, ignoring action ${action}`)
 			return
 		}
-		if (this.capabilities?.media?.keys !== true) {
-			if (!this.unsupportedLogged.has('media')) {
-				this.unsupportedLogged.add('media')
+		if (!supported) {
+			if (!this.unsupportedLogged.has(what)) {
+				this.unsupportedLogged.add(what)
+				const What = what[0].toUpperCase() + what.slice(1)
 				this.log(
 					'warn',
 					this.capabilities === null
-						? `Media keys need a newer Remote Volume app, ignoring ${action}`
-						: `The Remote Volume app does not support media keys on this computer. Ignoring ${action}`,
+						? `${What} need a newer Remote Volume app, ignoring ${action}`
+						: `The Remote Volume app does not support ${what} on this computer. Ignoring ${action}`,
 				)
 			}
 			return
 		}
-		this.sendAction({ action })
+		this.sendAction(message)
 	}
 
 	setAppVolume(app, vol) {

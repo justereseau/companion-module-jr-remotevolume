@@ -42,6 +42,12 @@ They replace the former Increase Volume and Decrease Volume actions; buttons tha
 
 It needs a Remote Volume app with media keys (Windows or Linux; not macOS yet). Otherwise the module sends nothing and logs it once. On Linux, `No media player found` is logged when no player is running.
 
+### Function keys
+
+`Function Key` presses F1 to F24 on the computer, like its keyboard: the focused window gets the key, or the app that uses it as a global hotkey. F13 to F24 are not on most keyboards, which makes them good hotkeys for other apps (OBS, Discord, ...).
+
+It needs a Remote Volume app with function keys: Windows, or Linux in an X11 session with `xdotool` installed (not macOS yet). Otherwise the module sends nothing and logs it once.
+
 ### Per-app volume and mute
 
 With a Remote Volume app that supports it (protocol v2, Windows and Linux), the module can control the volume and mute of each app playing audio:

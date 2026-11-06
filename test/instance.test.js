@@ -378,6 +378,42 @@ test('media keys are sent when the app supports them', async () => {
 	assert.deepEqual(inst.logs, [['warn', 'Unknown media key stop']])
 })
 
+test('function keys are sent when the app supports them, and checked', async () => {
+	const { server, inst } = await connect(
+		{},
+		{ initial: { volume: 20, muted: false, capabilities: { ...CAPABILITIES, keyboard: { functionKeys: true } } } },
+	)
+	await until(() => inst.capabilities !== null, 'the capabilities')
+
+	await inst.actionDefs.function_key.callback({ options: { key: 13 } }, CONTEXT)
+	inst.pressFunctionKey('24')
+	inst.pressFunctionKey(25)
+	inst.pressFunctionKey('F1')
+	inst.pressMediaKey('next')
+	await until(() => server.received.length === 2, 'both keys')
+
+	assert.deepEqual(server.received, [
+		{ action: 'pressFunctionKey', value: 13 },
+		{ action: 'pressFunctionKey', value: 24 },
+	])
+	assert.deepEqual(inst.logs, [
+		['warn', 'Unknown function key F25'],
+		['warn', 'Unknown function key FF1'],
+		['warn', 'The Remote Volume app does not support media keys on this computer. Ignoring mediaNextTrack'],
+	])
+})
+
+test('function keys need the capability', async () => {
+	const { server, inst } = await connect({}, { initial: { volume: 20, muted: false, outputDevice: 'Speakers' } })
+	await until(() => inst.vars.volume === 20, 'the v1 state')
+	inst.pressFunctionKey(13)
+	inst.pressFunctionKey(14)
+	inst.getState()
+	await until(() => server.received.length === 1, 'getState')
+	assert.deepEqual(server.received, [{ action: 'getState' }])
+	assert.deepEqual(inst.logs, [['warn', 'Function keys need a newer Remote Volume app, ignoring pressFunctionKey']])
+})
+
 test('media keys are skipped, logged once, without the capability or a connection', async () => {
 	const { server, inst } = await connect()
 	await until(() => inst.capabilities !== null, 'the capabilities')

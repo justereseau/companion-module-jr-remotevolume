@@ -6,6 +6,7 @@ export const CAPABILITIES = {
 	outputDevices: { list: false, select: false },
 	apps: { volume: false, mute: false },
 	media: { keys: false },
+	keyboard: { functionKeys: false },
 }
 
 /** A Remote Volume app stand-in: sends the initial state on connect and records what it receives. */
