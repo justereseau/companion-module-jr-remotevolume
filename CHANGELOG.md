@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.0](https://github.com/justereseau/companion-module-jr-remotevolume/compare/v1.6.0...v1.7.0) (2026-11-06)
+
+
+### Features
+
+* Media Key action (play/pause, next, previous) ([bf8937a](https://github.com/justereseau/companion-module-jr-remotevolume/commit/bf8937a529f843648ae4c56506b558116aac2668))
+* Media Key action (play/pause, next, previous) ([fdd373f](https://github.com/justereseau/companion-module-jr-remotevolume/commit/fdd373f7c628423d1e5f05c5702baa1af11bdc76))
+
 ## [1.6.0](https://github.com/justereseau/companion-module-jr-remotevolume/compare/v1.5.0...v1.6.0) (2026-11-05)
 
 
