@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.8.1](https://github.com/justereseau/companion-module-jr-remotevolume/compare/v1.8.0...v1.8.1) (2026-11-06)
+
+
+### Bug Fixes
+
+* tell the per-app presets apart, add function key presets ([73e8477](https://github.com/justereseau/companion-module-jr-remotevolume/commit/73e8477e92528764c94e5777232a13a0027f02f5))
+* tell the per-app presets apart, add function key presets ([dc1c6cb](https://github.com/justereseau/companion-module-jr-remotevolume/commit/dc1c6cb71ef83f50cd30921ef67672aeeec52f85))
+
 ## [1.8.0](https://github.com/justereseau/companion-module-jr-remotevolume/compare/v1.7.0...v1.8.0) (2026-11-06)
 
 
