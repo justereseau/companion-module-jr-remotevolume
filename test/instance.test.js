@@ -262,7 +262,7 @@ test('the apps list sets variables, app choices, presets and feedbacks', async (
 		inst.actionDefs.app_mute.options.find((o) => o.id === 'app').choices.map((c) => c.id),
 		['spotify', 'chrome'],
 	)
-	assert.equal(inst.presetDefs.filter((p) => p.category === 'Apps').length, 4)
+	assert.equal(inst.presetDefs.filter((p) => p.category.startsWith('Apps')).length, 4)
 	assert.ok(inst.feedbackChecks.some((ids) => ids.includes('app_muted') && ids.includes('app_running')))
 	assert.equal(await inst.feedbackDefs.app_muted.callback({ options: { app: 'chrome' } }, CONTEXT), true)
 })

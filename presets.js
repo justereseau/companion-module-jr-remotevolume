@@ -102,7 +102,24 @@ export function getPresetDefinitions(self) {
 		})
 	}
 
+	for (let number = 1; number <= 24; number++) {
+		presets.push({
+			category: 'Function keys',
+			name: `F${number}`,
+			type: 'button',
+			style: {
+				text: `F${number}`,
+				size: '18',
+				bgcolor: combineRgb(0, 0, 0),
+				color: combineRgb(255, 255, 255),
+			},
+			steps: [{ down: [{ actionId: 'function_key', options: { key: number } }], up: [] }],
+			feedbacks: [],
+		})
+	}
+
 	// Per-app presets for the apps playing audio right now; they follow the list as it changes.
+	// Each kind has its own category and text, so the two buttons of one app are told apart.
 	const label = self.label ?? 'jr-remotevolume'
 	for (const app of self.apps ?? []) {
 		const volume = `$(${label}:app_${variableKey(app.id)}_volume)`
@@ -112,20 +129,20 @@ export function getPresetDefinitions(self) {
 			style: { bgcolor: combineRgb(255, 0, 0), color: combineRgb(255, 255, 255) },
 		}
 		presets.push({
-			category: 'Apps',
+			category: 'Apps: Mute',
 			name: `${app.name}: Toggle Mute`,
 			type: 'button',
 			style: {
-				text: `${app.name}\n${volume}%`,
+				text: `${app.name}\nMute`,
 				size: '14',
 				bgcolor: combineRgb(0, 0, 0),
 				color: combineRgb(255, 255, 255),
 			},
 			steps: [{ down: [{ actionId: 'app_mute', options: { app: app.id, mute: 'toggle' } }], up: [] }],
-			feedbacks: [muted],
+			feedbacks: [{ ...muted, style: { ...muted.style, text: `${app.name}\nMuted` } }],
 		})
 		presets.push({
-			category: 'Apps',
+			category: 'Apps: Volume',
 			name: `${app.name}: Volume knob`,
 			type: 'button',
 			options: { rotaryActions: true },
