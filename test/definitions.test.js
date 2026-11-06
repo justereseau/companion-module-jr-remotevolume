@@ -76,6 +76,7 @@ test('action callbacks pass the options on to the instance', async () => {
 	await run('app_mute', { ...byVariable, mute: 'mute' })
 	await run('app_mute', { app: 'chrome', mute: 'unmute' })
 	await run('app_mute', { app: 'chrome', mute: 'toggle' })
+	await run('media_key', { key: 'next' })
 	assert.deepEqual(calls, [
 		['setVolume', 1],
 		['adjustVolume', '2'],
@@ -88,6 +89,7 @@ test('action callbacks pass the options on to the instance', async () => {
 		['muteApp', 'discord'],
 		['unmuteApp', 'chrome'],
 		['toggleAppMute', 'chrome'],
+		['pressMediaKey', 'next'],
 	])
 })
 
@@ -187,6 +189,22 @@ test('the app feedbacks find the app by id, name or variable, and are false whil
 	self.apps = [...APPS, { id: 'discord', name: 'Discord', volume: 50, muted: true }]
 	const byVariable = { options: { app: 'spotify', app_by_variable: true, app_variable: '$(custom:app)' } }
 	assert.equal(await app_muted.callback(byVariable, CONTEXT), true)
+})
+
+test('presets: previous, play / pause and next media keys', () => {
+	const media = presets.filter((p) => p.category === 'Media')
+	assert.deepEqual(
+		media.map((p) => [p.name, p.steps[0].down[0].options.key]),
+		[
+			['Previous track', 'previous'],
+			['Play / Pause', 'play_pause'],
+			['Next track', 'next'],
+		],
+	)
+	assert.deepEqual(
+		actions.media_key.options[0].choices.map((c) => c.id),
+		['play_pause', 'next', 'previous'],
+	)
 })
 
 test('presets: a mute button and a volume knob per running app, none without apps', () => {

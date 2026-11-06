@@ -36,6 +36,12 @@ If the app refuses the key, the connection shows an authentication failure and d
 
 They replace the former Increase Volume and Decrease Volume actions; buttons that used those are converted when the module updates.
 
+### Media keys
+
+`Media Key` presses Play / Pause, Next track or Previous track on the computer, like its keyboard's media keys: the computer sends it to the media player it picks (on Windows, the one shown in the volume flyout; on Linux, the player that is playing, else a paused one). The presets (category _Media_) have one button for each key.
+
+It needs a Remote Volume app with media keys (Windows or Linux; not macOS yet). Otherwise the module sends nothing and logs it once. On Linux, `No media player found` is logged when no player is running.
+
 ### Per-app volume and mute
 
 With a Remote Volume app that supports it (protocol v2, Windows and Linux), the module can control the volume and mute of each app playing audio:

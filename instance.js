@@ -4,7 +4,7 @@ import { getActionDefinitions } from './actions.js'
 import { getVariableDefinitions } from './variables.js'
 import { getFeedbackDefinitions } from './feedbacks.js'
 import { getPresetDefinitions } from './presets.js'
-import { parseRawMessage, variableKey, volumeStep } from './protocol.js'
+import { MEDIA_ACTIONS, parseRawMessage, variableKey, volumeStep } from './protocol.js'
 import WebSocket from 'ws'
 
 export class RemoteVolumeInstance extends InstanceBase {
@@ -240,6 +240,35 @@ export class RemoteVolumeInstance extends InstanceBase {
 			return
 		}
 		this.sendAction(value === undefined ? { action, app: target } : { action, app: target, value })
+	}
+
+	/**
+	 * Presses a media key on the computer (`play_pause`, `next` or `previous`), like on its keyboard,
+	 * when the app supports it (protocol v2, `media.keys`). Otherwise logs once and sends nothing.
+	 */
+	pressMediaKey(key) {
+		const action = MEDIA_ACTIONS[key]
+		if (action === undefined) {
+			this.log('warn', `Unknown media key ${key}`)
+			return
+		}
+		if (!this.isConnected()) {
+			this.log('warn', `Not connected, ignoring action ${action}`)
+			return
+		}
+		if (this.capabilities?.media?.keys !== true) {
+			if (!this.unsupportedLogged.has('media')) {
+				this.unsupportedLogged.add('media')
+				this.log(
+					'warn',
+					this.capabilities === null
+						? `Media keys need a newer Remote Volume app, ignoring ${action}`
+						: `The Remote Volume app does not support media keys on this computer. Ignoring ${action}`,
+				)
+			}
+			return
+		}
+		this.sendAction({ action })
 	}
 
 	setAppVolume(app, vol) {
