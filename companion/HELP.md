@@ -46,6 +46,8 @@ It needs a Remote Volume app with media keys (Windows or Linux; not macOS yet). 
 
 `Function Key` presses F1 to F24 on the computer, like its keyboard: the focused window gets the key, or the app that uses it as a global hotkey. F13 to F24 are not on most keyboards, which makes them good hotkeys for other apps (OBS, Discord, ...).
 
+The presets (category _Function keys_) have one button for each key.
+
 It needs a Remote Volume app with function keys: Windows, or Linux in an X11 session with `xdotool` installed (not macOS yet). Otherwise the module sends nothing and logs it once.
 
 ### Per-app volume and mute
@@ -55,7 +57,7 @@ With a Remote Volume app that supports it (protocol v2, Windows and Linux), the 
 - **Actions:** `App: Set Volume`, `App: Adjust Volume`, `App: Set Mute` (mute, unmute or toggle).
 - **Feedbacks:** `App: Muted`, and `App: Running` to grey out a button while the app plays nothing.
 - **Variables:** `apps` (the names of the apps playing audio), and `app_<id>_volume` / `app_<id>_muted` for each of them.
-- **Presets** (category _Apps_): a mute button and a volume knob for each app playing audio.
+- **Presets**, for each app playing audio: a mute button (category _Apps: Mute_, red while muted) and a volume knob showing the volume (category _Apps: Volume_; turn to change the volume, press to mute).
 
 An app is picked by its **id**: the program file name in lowercase, without `.exe` (`spotify`, `chrome`, `discord`). The dropdown lists the apps playing audio right now, and you can type an id for an app that is not running yet. Tick **Pick the app with a variable** to enter the app as text instead, with variables (e.g. `$(custom:app)`): an id or a display name. All the sessions of a program (browser tabs, helper processes) count as one app. On Windows, the system sounds (notifications, alerts) are the app `system`.
 

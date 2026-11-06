@@ -218,14 +218,37 @@ test('presets: previous, play / pause and next media keys', () => {
 })
 
 test('presets: a mute button and a volume knob per running app, none without apps', () => {
-	const apps = presets.filter((p) => p.category === 'Apps')
+	const apps = presets.filter((p) => p.category.startsWith('Apps'))
 	assert.deepEqual(
 		apps.map((p) => p.name),
 		['Spotify: Toggle Mute', 'Spotify: Volume knob', 'Google Chrome: Toggle Mute', 'Google Chrome: Volume knob'],
 	)
-	assert.equal(apps[0].style.text, 'Spotify\n$(rv:app_spotify_volume)%')
+	// The two buttons of one app differ in category and text, so they don't look like duplicates.
+	assert.deepEqual(
+		apps.map((p) => [p.category, p.style.text]),
+		[
+			['Apps: Mute', 'Spotify\nMute'],
+			['Apps: Volume', 'Spotify\n$(rv:app_spotify_volume)%'],
+			['Apps: Mute', 'Google Chrome\nMute'],
+			['Apps: Volume', 'Google Chrome\n$(rv:app_chrome_volume)%'],
+		],
+	)
+	assert.equal(apps[0].feedbacks[0].style.text, 'Spotify\nMuted')
 	assert.equal(apps[1].options.rotaryActions, true)
-	assert.equal(getPresetDefinitions({}).filter((p) => p.category === 'Apps').length, 0)
+	assert.equal(getPresetDefinitions({}).filter((p) => p.category.startsWith('Apps')).length, 0)
+})
+
+test('presets: one button per function key, F1 to F24', () => {
+	const keys = presets.filter((p) => p.category === 'Function keys')
+	assert.equal(keys.length, 24)
+	assert.deepEqual(
+		[keys[0], keys[12], keys[23]].map((p) => [p.style.text, p.steps[0].down[0].options.key]),
+		[
+			['F1', 1],
+			['F13', 13],
+			['F24', 24],
+		],
+	)
 })
 
 test('variable ids and config field ids are as documented and unique', () => {
