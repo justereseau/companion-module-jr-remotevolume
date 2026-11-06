@@ -82,6 +82,26 @@ export function getPresetDefinitions(self) {
 		],
 	})
 
+	for (const [key, name, text] of [
+		['previous', 'Previous track', 'Prev'],
+		['play_pause', 'Play / Pause', 'Play\nPause'],
+		['next', 'Next track', 'Next'],
+	]) {
+		presets.push({
+			category: 'Media',
+			name,
+			type: 'button',
+			style: {
+				text,
+				size: '14',
+				bgcolor: combineRgb(0, 0, 0),
+				color: combineRgb(255, 255, 255),
+			},
+			steps: [{ down: [{ actionId: 'media_key', options: { key } }], up: [] }],
+			feedbacks: [],
+		})
+	}
+
 	// Per-app presets for the apps playing audio right now; they follow the list as it changes.
 	const label = self.label ?? 'jr-remotevolume'
 	for (const app of self.apps ?? []) {

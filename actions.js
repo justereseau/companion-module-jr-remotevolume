@@ -151,6 +151,27 @@ export function getActionDefinitions(self) {
 				}
 			},
 		},
+		media_key: {
+			name: 'Media Key',
+			description:
+				'Press a media key on the computer, like on its keyboard: play/pause, next or previous track. Needs media keys in the Remote Volume app (protocol v2, on Windows or Linux); otherwise nothing is sent.',
+			options: [
+				{
+					type: 'dropdown',
+					id: 'key',
+					label: 'Key',
+					default: 'play_pause',
+					choices: [
+						{ id: 'play_pause', label: 'Play / Pause' },
+						{ id: 'next', label: 'Next track' },
+						{ id: 'previous', label: 'Previous track' },
+					],
+				},
+			],
+			callback: async (action) => {
+				self.pressMediaKey(action.options.key)
+			},
+		},
 		getState: {
 			name: 'Get latest Data',
 			description: 'Retrieve the latest information manually if polling is disabled',

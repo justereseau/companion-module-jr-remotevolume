@@ -357,6 +357,49 @@ test('a v1 app gets no app actions', async () => {
 	assert.equal(inst.apps, null)
 })
 
+test('media keys are sent when the app supports them', async () => {
+	const { server, inst } = await connect(
+		{},
+		{ initial: { volume: 20, muted: false, capabilities: { ...CAPABILITIES, media: { keys: true } } } },
+	)
+	await until(() => inst.capabilities !== null, 'the capabilities')
+
+	await inst.actionDefs.media_key.callback({ options: { key: 'play_pause' } }, CONTEXT)
+	await inst.actionDefs.media_key.callback({ options: { key: 'next' } }, CONTEXT)
+	await inst.actionDefs.media_key.callback({ options: { key: 'previous' } }, CONTEXT)
+	inst.pressMediaKey('stop')
+	await until(() => server.received.length === 3, 'all keys')
+
+	assert.deepEqual(server.received, [
+		{ action: 'mediaPlayPause' },
+		{ action: 'mediaNextTrack' },
+		{ action: 'mediaPreviousTrack' },
+	])
+	assert.deepEqual(inst.logs, [['warn', 'Unknown media key stop']])
+})
+
+test('media keys are skipped, logged once, without the capability or a connection', async () => {
+	const { server, inst } = await connect()
+	await until(() => inst.capabilities !== null, 'the capabilities')
+	inst.pressMediaKey('next')
+	inst.pressMediaKey('next')
+	inst.getState()
+	await until(() => server.received.length === 1, 'getState')
+	assert.deepEqual(server.received, [{ action: 'getState' }])
+	assert.deepEqual(inst.logs, [
+		['warn', 'The Remote Volume app does not support media keys on this computer. Ignoring mediaNextTrack'],
+	])
+
+	const v1 = await connect({}, { initial: { volume: 20, muted: false, outputDevice: 'Headphones' } })
+	await until(() => v1.inst.vars.volume === 20, 'the v1 state')
+	v1.inst.pressMediaKey('play_pause')
+	assert.deepEqual(v1.inst.logs, [['warn', 'Media keys need a newer Remote Volume app, ignoring mediaPlayPause']])
+
+	const offline = createInstance()
+	offline.pressMediaKey('next')
+	assert.deepEqual(offline.logs, [['warn', 'Not connected, ignoring action mediaNextTrack']])
+})
+
 test('app actions need an app and a connection', async () => {
 	const inst = createInstance()
 	inst.muteApp('  ')

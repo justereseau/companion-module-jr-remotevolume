@@ -103,6 +103,13 @@ export function findApp(apps, target) {
 	return apps.find((app) => app.id === id) ?? apps.find((app) => app.name.toLowerCase() === name)
 }
 
+/** The protocol v2 action of each media key (capability `media.keys`). */
+export const MEDIA_ACTIONS = {
+	play_pause: 'mediaPlayPause',
+	next: 'mediaNextTrack',
+	previous: 'mediaPreviousTrack',
+}
+
 /**
  * The step of an Adjust Volume action, typed or from a variable: a whole number of percentage
  * points (`5`, `-5`, `+5`, `-5%`), or null when the text is not a number.
