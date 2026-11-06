@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.8.0](https://github.com/justereseau/companion-module-jr-remotevolume/compare/v1.7.0...v1.8.0) (2026-11-06)
+
+
+### Features
+
+* Function Key action (F1 to F24) ([9b07eaf](https://github.com/justereseau/companion-module-jr-remotevolume/commit/9b07eafd047c77f1c5705503dae20dab55dcfbc8))
+* Function Key action (F1 to F24) ([55331e5](https://github.com/justereseau/companion-module-jr-remotevolume/commit/55331e595db69043649e95dfadad8717fd60b00b))
+
 ## [1.7.0](https://github.com/justereseau/companion-module-jr-remotevolume/compare/v1.6.0...v1.7.0) (2026-11-06)
 
 
