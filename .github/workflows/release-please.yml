@@ -3,11 +3,11 @@ name: Release
 on:
   push:
     branches: [main]
-  # Re-attach the package to an existing release (e.g. one made before this job existed).
+  # Finish a draft release when the run on main failed before publishing it.
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Build and attach the package to this existing release (e.g. v1.2.0)'
+        description: 'Build, attach the package to this draft release and publish it (e.g. v1.2.0)'
         required: true
 
 permissions:
@@ -18,12 +18,13 @@ concurrency:
   cancel-in-progress: false
 
 # release-please keeps a release PR (version bump + CHANGELOG) up to date from the Conventional
-# Commits on main. Merging that PR creates the tag and the GitHub release. Uses the built-in
+# Commits on main. Merging that PR creates the tag and a draft GitHub release. Uses the built-in
 # GITHUB_TOKEN, so the release PR does not trigger CI by itself: run the CI workflow manually on
 # its branch before merging. Needs Settings > Actions > General > "Allow GitHub Actions to create
 # and approve pull requests".
 # The module package (.tgz, import it on Companion's Modules page) is built from the tagged commit
-# and attached to the release.
+# and attached to the draft, which is then published. With the repository setting "Immutable
+# releases", publishing locks the package and the tag: to fix a bad release, make a new one.
 jobs:
   release-please:
     name: Release PR / tag
@@ -44,7 +45,7 @@ jobs:
           manifest-file: .release-please-manifest.json
 
   package:
-    name: Attach module package to release
+    name: Attach module package and publish release
     needs: release-please
     # always(): release-please is skipped on manual runs, which must not skip this job.
     if: >-
@@ -58,6 +59,15 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       TAG: ${{ needs.release-please.outputs.tag_name || inputs.release_tag }}
     steps:
+      # A published release is final.
+      - name: Check that the release is a draft
+        run: |
+          is_draft=$(gh release view "$TAG" --json isDraft --jq .isDraft --repo "$GITHUB_REPOSITORY")
+          if [[ "$is_draft" != "true" ]]; then
+            echo "::error::$TAG is already published and must not change. Make a new release instead."
+            exit 1
+          fi
+
       # Build exactly what was tagged.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -73,7 +83,8 @@ jobs:
       - name: Build the module package
         run: yarn companion-module-build
 
-      - name: Upload to the GitHub release
+      # --clobber only replaces files of this draft, from an earlier attempt that did not finish.
+      - name: Upload to the draft release
         run: |
           shopt -s nullglob
           files=(jr-remotevolume-*.tgz)
@@ -82,3 +93,19 @@ jobs:
           fi
           sha256sum "${files[0]}" > SHA256SUMS.txt
           gh release upload "$TAG" "${files[0]}" SHA256SUMS.txt --clobber --repo "$GITHUB_REPOSITORY"
+
+      - name: Publish the release
+        run: gh release edit "$TAG" --draft=false --repo "$GITHUB_REPOSITORY"
+
+      # The release is out either way: this reports that the repository setting was turned off.
+      - name: Check that the published release is immutable
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            immutable=$(gh release view "$TAG" --json isImmutable --jq .isImmutable --repo "$GITHUB_REPOSITORY")
+            if [[ "$immutable" == "true" ]]; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::$TAG is published but not immutable. Turn on Immutable releases in the repository settings."
+          exit 1
