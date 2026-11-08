@@ -96,8 +96,13 @@ export class RemoteVolumeInstance extends InstanceBase {
 			this.ws.close(1000)
 			delete this.ws
 		}
-		// The close handler of a replaced socket does not run, and the next target may not report a version.
+		// The close handler of a replaced socket does nothing, and the next target may not report any of
+		// this (a v1 app never sends capabilities): forget what the previous target announced, and let
+		// the warnings log again for the next one.
+		this.capabilities = null
 		this.setBackendVersion(null)
+		this.setApps(null)
+		this.unsupportedLogged.clear()
 		const ws = new WebSocket(url, apiKey ? { headers: { Authorization: `Bearer ${apiKey}` } } : undefined)
 		this.ws = ws
 		// Events of a socket that has been replaced or destroyed must not touch the current state.

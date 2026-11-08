@@ -578,6 +578,72 @@ test('losing the connection forgets the apps', async () => {
 	assert.equal(await inst.feedbackDefs.app_running.callback({ options: { app: 'spotify' } }, CONTEXT), false)
 })
 
+const V1_STATE = { initial: { volume: 20, muted: false, outputDevice: 'Headphones' } }
+
+async function changeTargetToV1(inst) {
+	const v1 = await startServer(V1_STATE)
+	cleanups.push(() => v1.close())
+	await inst.configUpdated({ targetIp: '127.0.0.1', targetPort: v1.port, reconnect: false })
+	return v1
+}
+
+test('a config change to a v1 app forgets the capabilities and apps of the previous target', async () => {
+	const { inst } = await connect(
+		{},
+		withApps(undefined, { ...APPS_CAPABILITIES, media: { keys: true }, keyboard: { functionKeys: true } }),
+	)
+	await until(() => inst.apps !== null, 'the apps list')
+
+	const v1 = await changeTargetToV1(inst)
+	await until(() => inst.vars.output_audio_device_name === 'Headphones', 'the new target')
+
+	inst.setAppVolume('spotify', 10)
+	inst.muteApp('spotify')
+	inst.pressMediaKey('next')
+	inst.pressFunctionKey(13)
+	inst.getState()
+	await until(() => v1.received.at(-1)?.action === 'getState', 'getState')
+
+	assert.deepEqual(v1.received, [{ action: 'getState' }], 'a v1 app would answer Invalid action to the others')
+	assert.deepEqual(inst.logs, [
+		['warn', 'Per-app volume needs a newer Remote Volume app, ignoring setAppVolume'],
+		['warn', 'Per-app mute needs a newer Remote Volume app, ignoring muteApp'],
+		['warn', 'Media keys need a newer Remote Volume app, ignoring mediaNextTrack'],
+		['warn', 'Function keys need a newer Remote Volume app, ignoring pressFunctionKey'],
+	])
+	assert.equal(inst.capabilities, null)
+	assert.equal(inst.apps, null)
+	assert.equal(inst.vars.apps, '')
+	assert.deepEqual(inst.actionDefs.app_mute.options.find((o) => o.id === 'app').choices, [])
+	assert.ok(!inst.variableDefs.some((v) => v.variableId.startsWith('app_')))
+	assert.equal(await inst.feedbackDefs.app_running.callback({ options: { app: 'spotify' } }, CONTEXT), false)
+})
+
+test('a config change forgets the previous target at once, before the new one answers', async () => {
+	const { inst } = await connect({}, withApps())
+	await until(() => inst.apps !== null, 'the apps list')
+
+	await changeTargetToV1(inst)
+
+	assert.equal(inst.capabilities, null)
+	assert.equal(inst.apps, null)
+	assert.equal(inst.vars.apps, '')
+})
+
+test('after a config change, the unsupported warnings can log again for the new target', async () => {
+	const { inst } = await connect({}, withApps(undefined, { ...CAPABILITIES, apps: { volume: true, mute: false } }))
+	await until(() => inst.apps !== null, 'the apps list')
+	inst.muteApp('spotify')
+	assert.match(inst.logs.at(-1)[1], /does not support per-app mute/)
+
+	await changeTargetToV1(inst)
+	await until(() => inst.vars.output_audio_device_name === 'Headphones', 'the new target')
+	inst.muteApp('spotify')
+
+	assert.equal(inst.logs.length, 2)
+	assert.deepEqual(inst.logs[1], ['warn', 'Per-app mute needs a newer Remote Volume app, ignoring muteApp'])
+})
+
 test('adjust volume: large steps set the volume, zero does nothing, text is refused', async () => {
 	const { server, inst } = await connect({}, withApps())
 	await until(() => inst.apps !== null, 'the apps list')
