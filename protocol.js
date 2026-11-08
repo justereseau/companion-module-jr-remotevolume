@@ -49,6 +49,18 @@ export function parseMessage(message) {
 }
 
 /**
+ * The version of the Remote Volume app, from its capabilities (`1.7.1`, `1.7.1-dev`). The text comes
+ * from the network and is displayed in Companion's UI, so only what a version can look like is accepted.
+ *
+ * @param {object | null | undefined} capabilities
+ * @returns {string | null} Null when the app did not report a usable version.
+ */
+export function parseBackendVersion(capabilities) {
+	const version = capabilities?.version
+	return typeof version === 'string' && /^[0-9A-Za-z.+-]{1,32}$/.test(version) ? version : null
+}
+
+/**
  * @typedef {object} App
  * @property {string} id Lowercased executable name without `.exe` (`spotify`).
  * @property {string} name Display name.

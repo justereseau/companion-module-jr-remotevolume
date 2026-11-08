@@ -50,6 +50,12 @@ The presets (category _Function keys_) have one button for each key.
 
 It needs a Remote Volume app with function keys: Windows, or Linux in an X11 session with `xdotool` installed (not macOS yet). Otherwise the module sends nothing and logs it once.
 
+### Backend version
+
+The connection's settings page shows the version of the Remote Volume app it is connected to, and the variable `backend_version` holds the same version. Use them to follow an update of the app from Companion. If the version changes while the settings page is open, reopen the page to see the new one.
+
+The page shows `Not connected` while there is no connection, and `Unknown` for a Remote Volume app too old to report its version. The variable is empty in both cases.
+
 ### Per-app volume and mute
 
 With a Remote Volume app that supports it (protocol v2, Windows and Linux), the module can control the volume and mute of each app playing audio:

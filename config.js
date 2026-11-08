@@ -43,3 +43,23 @@ export const ConfigFields = [
 		default: true,
 	},
 ]
+
+/**
+ * The config fields, with the version of the Remote Volume app shown under the information.
+ *
+ * @param {string} backendVersion The text to show: the version, or why there is none.
+ */
+export function getConfigFields(backendVersion) {
+	const [info, ...others] = ConfigFields
+	return [
+		info,
+		{
+			type: 'static-text',
+			id: 'backendVersion',
+			width: 12,
+			label: 'Backend version',
+			value: backendVersion,
+		},
+		...others,
+	]
+}

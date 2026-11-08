@@ -17,6 +17,10 @@ export const variables = [
 		name: 'Apps playing audio (comma-separated names)',
 		variableId: 'apps',
 	},
+	{
+		name: 'Version of the Remote Volume app (empty while unknown)',
+		variableId: 'backend_version',
+	},
 ]
 
 /**

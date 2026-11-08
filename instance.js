@@ -1,10 +1,10 @@
 import { InstanceBase, InstanceStatus } from '@companion-module/base'
-import { ConfigFields } from './config.js'
+import { getConfigFields } from './config.js'
 import { getActionDefinitions } from './actions.js'
 import { getVariableDefinitions } from './variables.js'
 import { getFeedbackDefinitions } from './feedbacks.js'
 import { getPresetDefinitions } from './presets.js'
-import { MEDIA_ACTIONS, parseRawMessage, variableKey, volumeStep } from './protocol.js'
+import { MEDIA_ACTIONS, parseBackendVersion, parseRawMessage, variableKey, volumeStep } from './protocol.js'
 import WebSocket from 'ws'
 
 export class RemoteVolumeInstance extends InstanceBase {
@@ -17,6 +17,8 @@ export class RemoteVolumeInstance extends InstanceBase {
 		this.muted = null
 		// Capabilities announced by the app (protocol v2); null for a v1 app or while disconnected.
 		this.capabilities = null
+		// Version announced by the app; null for an app too old to report it or while disconnected.
+		this.backendVersion = null
 		// Apps playing audio (protocol v2); null while unknown, unsupported or turned off in the app.
 		this.apps = null
 		// The ids and names the current definitions were built from, to rebuild them only when those change.
@@ -94,6 +96,8 @@ export class RemoteVolumeInstance extends InstanceBase {
 			this.ws.close(1000)
 			delete this.ws
 		}
+		// The close handler of a replaced socket does not run, and the next target may not report a version.
+		this.setBackendVersion(null)
 		const ws = new WebSocket(url, apiKey ? { headers: { Authorization: `Bearer ${apiKey}` } } : undefined)
 		this.ws = ws
 		// Events of a socket that has been replaced or destroyed must not touch the current state.
@@ -112,6 +116,7 @@ export class RemoteVolumeInstance extends InstanceBase {
 		ws.addEventListener('close', (event) => {
 			if (!current()) return
 			this.capabilities = null
+			this.setBackendVersion(null)
 			this.setApps(null)
 			// A refused key will not work on the next try either: wait for a config change.
 			if (this.authFailed) return
@@ -343,6 +348,13 @@ export class RemoteVolumeInstance extends InstanceBase {
 		this.checkFeedbacks('app_muted', 'app_running')
 	}
 
+	/** @param {string | null} version The version the app reported, null when there is none. */
+	setBackendVersion(version) {
+		if (this.backendVersion === version) return
+		this.backendVersion = version
+		this.setVariableValues({ backend_version: version ?? '' })
+	}
+
 	/**
 	 * Applies a message from the app: state fields, the capabilities and app list of protocol v2, and
 	 * errors. Keys this module does not know about are ignored.
@@ -355,6 +367,7 @@ export class RemoteVolumeInstance extends InstanceBase {
 
 		if (capabilities !== undefined) {
 			this.capabilities = capabilities
+			this.setBackendVersion(parseBackendVersion(capabilities))
 			this.unsupportedLogged.clear()
 		}
 		if ('apps' in state) {
@@ -384,8 +397,10 @@ export class RemoteVolumeInstance extends InstanceBase {
 		}
 	}
 
+	// Companion can ask for the fields before init on first setup: there is no socket yet, so 'Not connected'.
 	getConfigFields() {
-		return ConfigFields
+		if (!this.isConnected()) return getConfigFields('Not connected')
+		return getConfigFields(this.backendVersion ?? 'Unknown: this Remote Volume app is too old to report it')
 	}
 }
 
