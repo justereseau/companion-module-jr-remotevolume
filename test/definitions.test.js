@@ -254,7 +254,7 @@ test('presets: one button per function key, F1 to F24', () => {
 test('variable ids and config field ids are as documented and unique', () => {
 	assert.deepEqual(
 		variables.map((v) => v.variableId),
-		['muted', 'volume', 'output_audio_device_name', 'apps'],
+		['muted', 'volume', 'output_audio_device_name', 'apps', 'backend_version'],
 	)
 	assert.deepEqual(
 		getVariableDefinitions([{ id: 'my app', name: 'My App' }])

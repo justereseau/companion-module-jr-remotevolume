@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { appId, findApp, parseMessage, parseRawMessage, variableKey, volumeStep } from '../protocol.js'
+import {
+	appId,
+	findApp,
+	parseBackendVersion,
+	parseMessage,
+	parseRawMessage,
+	variableKey,
+	volumeStep,
+} from '../protocol.js'
 
 const CAPABILITIES = {
 	protocolVersion: 2,
@@ -121,6 +129,33 @@ test('binary frames are decoded', () => {
 test('invalid JSON throws', () => {
 	assert.throws(() => parseRawMessage(''), SyntaxError)
 	assert.throws(() => parseRawMessage('{'), SyntaxError)
+})
+
+test('the backend version: what a version can look like, anything else refused', () => {
+	for (const version of ['1.7.1', '1.7.1-dev', '2.0.0-rc.1+build.5', 'v1', '1'.repeat(32)]) {
+		assert.equal(parseBackendVersion({ version }), version)
+	}
+	for (const version of [
+		'',
+		'1'.repeat(33),
+		'<b>1.7.1</b>',
+		'<img src=x onerror=alert(1)>',
+		'1.7.1 beta',
+		'1.7.1\n',
+		'[1.7.1](http://example.com)',
+		'1.7.1é',
+		171,
+		true,
+		null,
+		undefined,
+		['1.7.1'],
+		{ version: '1.7.1' },
+	]) {
+		assert.equal(parseBackendVersion({ version }), null, JSON.stringify(version))
+	}
+	assert.equal(parseBackendVersion({ protocolVersion: 2 }), null, 'an older app does not send it')
+	assert.equal(parseBackendVersion(null), null)
+	assert.equal(parseBackendVersion(undefined), null)
 })
 
 test('adjust steps: signed whole numbers, a trailing % allowed, anything else refused', () => {

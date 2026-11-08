@@ -3,6 +3,7 @@ import { RemoteVolumeInstance } from '../instance.js'
 
 export const CAPABILITIES = {
 	protocolVersion: 2,
+	version: '1.2.3',
 	outputDevices: { list: false, select: false },
 	apps: { volume: false, mute: false },
 	media: { keys: false },

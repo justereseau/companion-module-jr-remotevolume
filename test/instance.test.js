@@ -25,7 +25,12 @@ test('connects and applies the initial state of the all-Rust app, capabilities i
 	await until(() => 'output_audio_device_name' in inst.vars, 'the initial state')
 
 	assert.deepEqual(statusNames(inst), [InstanceStatus.Connecting, InstanceStatus.Ok])
-	assert.deepEqual(inst.vars, { muted: true, volume: 65, output_audio_device_name: 'Speakers' })
+	assert.deepEqual(inst.vars, {
+		backend_version: '1.2.3',
+		muted: true,
+		volume: 65,
+		output_audio_device_name: 'Speakers',
+	})
 	assert.equal(inst.muted, true)
 	assert.deepEqual(inst.capabilities, CAPABILITIES)
 	assert.deepEqual(inst.logs, [])
@@ -192,8 +197,123 @@ test('the config fields are the ones the module reads', () => {
 	const inst = createInstance()
 	assert.deepEqual(
 		inst.getConfigFields().map((field) => field.id),
-		['info', 'targetIp', 'targetPort', 'apiKey', 'reconnect'],
+		['info', 'backendVersion', 'targetIp', 'targetPort', 'apiKey', 'reconnect'],
 	)
+})
+
+const versionOnPage = (inst) => inst.getConfigFields().find((field) => field.id === 'backendVersion').value
+const UNKNOWN_VERSION = 'Unknown: this Remote Volume app is too old to report it'
+const stateWithVersion = (version) => ({
+	initial: { volume: 65, muted: true, outputDevice: 'Speakers', capabilities: { ...CAPABILITIES, version } },
+})
+
+test('the settings page says Not connected before init, on first setup', () => {
+	assert.equal(versionOnPage(createInstance()), 'Not connected')
+})
+
+test('the settings page and the variable show the version of the connected app', async () => {
+	const { inst } = await connect()
+	await until(() => inst.capabilities !== null, 'the capabilities')
+
+	assert.equal(versionOnPage(inst), '1.2.3')
+	assert.equal(inst.vars.backend_version, '1.2.3')
+})
+
+test('the version field is a read-only text', async () => {
+	const { inst } = await connect()
+	await until(() => inst.capabilities !== null, 'the capabilities')
+
+	const field = inst.getConfigFields().find(({ id }) => id === 'backendVersion')
+	assert.deepEqual(field, {
+		type: 'static-text',
+		id: 'backendVersion',
+		width: 12,
+		label: 'Backend version',
+		value: '1.2.3',
+	})
+})
+
+test('losing the connection clears the version', async () => {
+	const { server, inst } = await connect()
+	await until(() => inst.capabilities !== null, 'the capabilities')
+
+	server.dropClients(1001)
+	await until(() => statusNames(inst).includes(InstanceStatus.Disconnected), 'the disconnect')
+
+	assert.equal(inst.backendVersion, null)
+	assert.equal(inst.vars.backend_version, '')
+	assert.equal(versionOnPage(inst), 'Not connected')
+})
+
+test('after a reconnect, the page and the variable show the new version', async () => {
+	const { server, inst } = await connect({ reconnect: true }, stateWithVersion('1.7.1'))
+	await until(() => inst.vars.backend_version === '1.7.1', 'the first version')
+	const { port } = server
+
+	await server.close()
+	await until(() => inst.reconnectTimer !== null, 'the reconnect timer')
+	assert.equal(inst.vars.backend_version, '')
+	assert.equal(versionOnPage(inst), 'Not connected')
+
+	const updated = await startServer({ port, ...stateWithVersion('1.7.2') })
+	cleanups.push(() => updated.close())
+	await until(() => inst.vars.backend_version === '1.7.2', 'the new version')
+	assert.equal(versionOnPage(inst), '1.7.2')
+})
+
+test('an app reporting no version shows Unknown', async () => {
+	const { protocolVersion } = CAPABILITIES
+	const { inst } = await connect({}, { initial: { volume: 20, muted: false, capabilities: { protocolVersion } } })
+	await until(() => inst.capabilities !== null, 'the capabilities')
+
+	assert.equal(versionOnPage(inst), UNKNOWN_VERSION)
+	assert.ok(!('backend_version' in inst.vars), 'nothing to clear')
+})
+
+test('text that does not look like a version is not shown', async () => {
+	const { inst } = await connect({}, stateWithVersion('<img src=x onerror=alert(1)>'))
+	await until(() => inst.capabilities !== null, 'the capabilities')
+
+	assert.equal(inst.backendVersion, null)
+	assert.equal(versionOnPage(inst), UNKNOWN_VERSION)
+})
+
+for (const [what, capabilities] of [
+	['a v1 app, without capabilities', undefined],
+	['a v2 app, without a version', { protocolVersion: 2 }],
+]) {
+	test(`after a config change to ${what}, the previous version is gone`, async () => {
+		const { inst } = await connect()
+		await until(() => inst.vars.backend_version === '1.2.3', 'the first version')
+
+		const other = await startServer({ initial: { volume: 5, muted: false, outputDevice: 'Other', capabilities } })
+		cleanups.push(() => other.close())
+		await inst.configUpdated({ targetIp: '127.0.0.1', targetPort: other.port, reconnect: false })
+		assert.equal(inst.vars.backend_version, '', 'gone as soon as the socket is replaced')
+		assert.equal(versionOnPage(inst), 'Not connected')
+
+		await until(() => inst.vars.output_audio_device_name === 'Other', 'the new target')
+		assert.equal(inst.backendVersion, null)
+		assert.equal(inst.vars.backend_version, '')
+		assert.equal(versionOnPage(inst), UNKNOWN_VERSION)
+	})
+}
+
+test('the variable is only written when the version changes', async () => {
+	const { server, inst } = await connect()
+	await until(() => inst.capabilities !== null, 'the capabilities')
+	const written = []
+	const { setVariableValues } = inst
+	inst.setVariableValues = (values) => {
+		if ('backend_version' in values) written.push(values.backend_version)
+		setVariableValues(values)
+	}
+
+	server.broadcast({ action: 'getCapabilities', response: { capabilities: CAPABILITIES } })
+	server.broadcast({ action: 'getCapabilities', response: { capabilities: { ...CAPABILITIES, version: '1.2.4' } } })
+	await until(() => inst.backendVersion === '1.2.4', 'the changed version')
+
+	assert.deepEqual(written, ['1.2.4'])
 })
 
 test('the API key is sent as a Bearer token, never in the URL', async () => {
