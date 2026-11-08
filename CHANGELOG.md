@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.8.2](https://github.com/justereseau/companion-module-jr-remotevolume/compare/v1.8.1...v1.8.2) (2026-11-08)
+
+
+### Bug Fixes
+
+* show the Backend version on the settings page ([6f77879](https://github.com/justereseau/companion-module-jr-remotevolume/commit/6f778791948376434e71e257878ccdda7ff5279f))
+* show the Backend version on the settings page ([8dc764f](https://github.com/justereseau/companion-module-jr-remotevolume/commit/8dc764f5d97bf82a68aa189cf9545cb731244903))
+
 ## [1.8.1](https://github.com/justereseau/companion-module-jr-remotevolume/compare/v1.8.0...v1.8.1) (2026-11-06)
 
 
