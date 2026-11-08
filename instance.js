@@ -70,11 +70,30 @@ export class RemoteVolumeInstance extends InstanceBase {
 		}
 	}
 
+	/**
+	 * Closes the socket, if any. Its close handler then does nothing, and the next target may not report
+	 * any of this (a v1 app never sends capabilities): forgets what this target announced, and lets the
+	 * warnings log again for the next one.
+	 */
+	leaveCurrentTarget() {
+		if (this.ws) {
+			this.ws.close(1000)
+			delete this.ws
+		}
+		this.capabilities = null
+		this.setBackendVersion(null)
+		this.setApps(null)
+		this.unsupportedLogged.clear()
+	}
+
 	initWebSocket() {
 		if (this.reconnectTimer) {
 			clearInterval(this.reconnectTimer)
 			this.reconnectTimer = null
 		}
+
+		// First, so that a config too bad to connect with does not leave the module on the old target.
+		this.leaveCurrentTarget()
 
 		const url = 'ws://' + this.config.targetIp + ':' + this.config.targetPort
 		if (!url || !this.config.targetIp) {
@@ -92,17 +111,6 @@ export class RemoteVolumeInstance extends InstanceBase {
 		this.updateStatus(InstanceStatus.Connecting)
 		this.authFailed = false
 
-		if (this.ws) {
-			this.ws.close(1000)
-			delete this.ws
-		}
-		// The close handler of a replaced socket does nothing, and the next target may not report any of
-		// this (a v1 app never sends capabilities): forget what the previous target announced, and let
-		// the warnings log again for the next one.
-		this.capabilities = null
-		this.setBackendVersion(null)
-		this.setApps(null)
-		this.unsupportedLogged.clear()
 		const ws = new WebSocket(url, apiKey ? { headers: { Authorization: `Bearer ${apiKey}` } } : undefined)
 		this.ws = ws
 		// Events of a socket that has been replaced or destroyed must not touch the current state.
