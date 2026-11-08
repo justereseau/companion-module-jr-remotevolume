@@ -644,6 +644,111 @@ test('after a config change, the unsupported warnings can log again for the new 
 	assert.deepEqual(inst.logs[1], ['warn', 'Per-app mute needs a newer Remote Volume app, ignoring muteApp'])
 })
 
+const settle = (ms = 100) => new Promise((resolve) => setTimeout(resolve, ms))
+
+for (const [what, badConfig, badSecrets, message] of [
+	['the target IP is cleared', { targetIp: '' }, undefined, 'Target IP is missing'],
+	['the API key is made invalid', {}, { apiKey: 'bad key' }, 'The API key contains invalid characters'],
+]) {
+	const goBad = (inst) => inst.configUpdated({ ...inst.config, ...badConfig }, badSecrets)
+
+	test(`when ${what}, the old socket closes and its target is forgotten`, async () => {
+		const { inst } = await connect({}, withApps(undefined, { ...CAPABILITIES, apps: { volume: true, mute: false } }))
+		await until(() => inst.apps !== null, 'the apps list')
+		inst.muteApp('spotify')
+		assert.equal(inst.unsupportedLogged.size, 1)
+		const old = inst.ws
+
+		await goBad(inst)
+
+		assert.deepEqual(inst.statuses.at(-1), [InstanceStatus.BadConfig, message])
+		assert.equal(inst.ws, undefined)
+		await until(() => old.readyState === 3, 'the old socket to close')
+		assert.equal(inst.capabilities, null)
+		assert.equal(inst.apps, null)
+		assert.equal(inst.unsupportedLogged.size, 0)
+		assert.equal(inst.vars.apps, '')
+		assert.equal(inst.vars.backend_version, '')
+		assert.equal(versionOnPage(inst), 'Not connected')
+		assert.deepEqual(inst.actionDefs.app_mute.options.find((o) => o.id === 'app').choices, [])
+	})
+
+	test(`when ${what}, actions no longer reach the old target`, async () => {
+		const { server, inst } = await connect()
+		await until(() => inst.capabilities !== null, 'the initial state')
+
+		await goBad(inst)
+		inst.setVolume(10)
+		await settle()
+
+		assert.deepEqual(server.received, [])
+		assert.deepEqual(inst.logs.at(-1), ['warn', 'Not connected, ignoring action setVolume'])
+	})
+
+	test(`when ${what}, broadcasts of the old target no longer update the variables`, async () => {
+		const { server, inst } = await connect()
+		await until(() => inst.capabilities !== null, 'the initial state')
+
+		await goBad(inst)
+		server.broadcast({ volume: 1 })
+		await settle()
+
+		assert.equal(inst.vars.volume, 65)
+	})
+
+	test(`when ${what}, the old target going away changes nothing and does not reconnect`, async () => {
+		const { server, inst } = await connect({ reconnect: true })
+		await until(() => inst.capabilities !== null, 'the initial state')
+
+		await goBad(inst)
+		server.dropClients(1001)
+		await settle(300) // several reconnect intervals
+
+		assert.deepEqual(inst.statuses, [
+			[InstanceStatus.Connecting, null],
+			[InstanceStatus.Ok, null],
+			[InstanceStatus.BadConfig, message],
+		])
+		assert.equal(inst.reconnectTimer, null)
+		assert.equal(server.handshakes.length, 1)
+	})
+
+	test(`when ${what} while still connecting, the status stays bad`, async () => {
+		const { inst } = await connect()
+		const connecting = inst.ws
+		assert.equal(connecting.readyState, 0, 'the socket has not opened yet')
+
+		await goBad(inst)
+		await settle()
+
+		assert.deepEqual(inst.statuses, [
+			[InstanceStatus.Connecting, null],
+			[InstanceStatus.BadConfig, message],
+		])
+		assert.equal(connecting.readyState, 3)
+		assert.deepEqual(inst.logs, [], 'closing it early is not an error to report')
+	})
+
+	test(`when ${what} and then fixed, the module connects again`, async () => {
+		const { server, inst } = await connect()
+		await until(() => inst.capabilities !== null, 'the initial state')
+
+		await goBad(inst)
+		assert.equal(inst.ws, undefined)
+		await inst.configUpdated({ ...inst.config, targetIp: '127.0.0.1' })
+		await until(() => inst.capabilities !== null, 'the state after fixing the config')
+
+		assert.deepEqual(statusNames(inst), [
+			InstanceStatus.Connecting,
+			InstanceStatus.Ok,
+			InstanceStatus.BadConfig,
+			InstanceStatus.Connecting,
+			InstanceStatus.Ok,
+		])
+		assert.equal(server.handshakes.length, 2)
+	})
+}
+
 test('adjust volume: large steps set the volume, zero does nothing, text is refused', async () => {
 	const { server, inst } = await connect({}, withApps())
 	await until(() => inst.apps !== null, 'the apps list')
