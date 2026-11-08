@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.8.3](https://github.com/justereseau/companion-module-jr-remotevolume/compare/v1.8.2...v1.8.3) (2026-11-08)
+
+
+### Bug Fixes
+
+* forget the previous target's capabilities and apps on a config change ([5bb021e](https://github.com/justereseau/companion-module-jr-remotevolume/commit/5bb021e01ffe56039ef4dde144bd8d550fe490c4))
+* forget the previous target's capabilities and apps on a config change ([db66c56](https://github.com/justereseau/companion-module-jr-remotevolume/commit/db66c56c8a717cd2c54cf7b0973a4b7573efb0b1))
+
 ## [1.8.2](https://github.com/justereseau/companion-module-jr-remotevolume/compare/v1.8.1...v1.8.2) (2026-11-08)
 
 
