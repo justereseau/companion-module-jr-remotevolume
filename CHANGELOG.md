@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.8.4](https://github.com/justereseau/companion-module-jr-remotevolume/compare/v1.8.3...v1.8.4) (2026-11-08)
+
+
+### Bug Fixes
+
+* close the old connection when the config goes bad ([1475d85](https://github.com/justereseau/companion-module-jr-remotevolume/commit/1475d85bb7959d5413514c81cc3ca6bad62b74ed))
+* close the old connection when the config goes bad ([1b2bcf6](https://github.com/justereseau/companion-module-jr-remotevolume/commit/1b2bcf6e9ba8eccc2f4751b2d797a27544ebc27b))
+
 ## [1.8.3](https://github.com/justereseau/companion-module-jr-remotevolume/compare/v1.8.2...v1.8.3) (2026-11-08)
 
 
