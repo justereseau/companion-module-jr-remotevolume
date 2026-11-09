@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.9.0](https://github.com/justereseau/companion-module-jr-remotevolume/compare/v1.8.4...v1.9.0) (2026-11-09)
+
+
+### Features
+
+* select the output device ([e3da31b](https://github.com/justereseau/companion-module-jr-remotevolume/commit/e3da31b417ae473980da2ca36eb71109bfcd3a01))
+* select the output device ([4244c00](https://github.com/justereseau/companion-module-jr-remotevolume/commit/4244c0069b9734344c01be12be452b6b15975e22))
+
 ## [1.8.4](https://github.com/justereseau/companion-module-jr-remotevolume/compare/v1.8.3...v1.8.4) (2026-11-08)
 
 
