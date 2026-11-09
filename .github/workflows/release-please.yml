@@ -18,10 +18,10 @@ concurrency:
   cancel-in-progress: false
 
 # release-please keeps a release PR (version bump + CHANGELOG) up to date from the Conventional
-# Commits on main. Merging that PR creates the tag and a draft GitHub release. Uses the built-in
-# GITHUB_TOKEN, so the release PR does not trigger CI by itself: run the CI workflow manually on
-# its branch before merging. Needs Settings > Actions > General > "Allow GitHub Actions to create
-# and approve pull requests".
+# Commits on main. Merging that PR creates the tag and a draft GitHub release. Without the
+# optional RELEASE_PLEASE_TOKEN secret it uses the built-in GITHUB_TOKEN, so the release PR does
+# not trigger CI by itself: run the CI workflow manually on its branch before merging. Needs
+# Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests".
 # The module package (.tgz, import it on Companion's Modules page) is built from the tagged commit
 # and attached to the draft, which is then published. With the repository setting "Immutable
 # releases", publishing locks the package and the tag: to fix a bad release, make a new one.
@@ -37,12 +37,31 @@ jobs:
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
+    env:
+      HAS_RELEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN != '' }}
     steps:
+      # RELEASE_PLEASE_TOKEN is optional: a personal access token (or GitHub App token) of a
+      # maintainer, with Contents and Pull requests write access. Set, the release PR is opened
+      # with it, so CI starts by itself on that PR, and GitHub merges the PR once the required
+      # checks pass. Not set, it falls back to the built-in token and the PR is merged by hand.
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         id: release
         with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      # The merge must be made with that same token: a merge made with the built-in token would not
+      # start the run on `main` that creates the tag and the release. So nothing is enabled without it.
+      - name: Merge the release PR when its checks pass
+        if: steps.release.outputs.prs_created == 'true' && env.HAS_RELEASE_TOKEN == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          for pr in $(gh pr list --state open --label 'autorelease: pending' --json number --jq '.[].number'); do
+            gh pr merge "$pr" --auto --merge
+          done
 
   package:
     name: Attach module package and publish release
