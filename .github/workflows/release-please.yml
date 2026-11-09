@@ -20,8 +20,9 @@ concurrency:
 # release-please keeps a release PR (version bump + CHANGELOG) up to date from the Conventional
 # Commits on main. Merging that PR creates the tag and a draft GitHub release. Without the
 # optional RELEASE_PLEASE_TOKEN secret it uses the built-in GITHUB_TOKEN, so the release PR does
-# not trigger CI by itself: run the CI workflow manually on its branch before merging. Needs
-# Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests".
+# not trigger CI by itself: run the CI and Companion Module Checks workflows manually on its branch
+# before merging. Needs Settings > Actions > General > "Allow GitHub Actions to create and approve
+# pull requests".
 # The module package (.tgz, import it on Companion's Modules page) is built from the tagged commit
 # and attached to the draft, which is then published. With the repository setting "Immutable
 # releases", publishing locks the package and the tag: to fix a bad release, make a new one.

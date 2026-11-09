@@ -2,6 +2,12 @@ name: Companion Module Checks
 
 on:
   push:
+    branches: [main]
+  # "Package module" is required to merge, and a release PR gets no push event of its own.
+  pull_request:
+  # Run by hand on the release-please branch: PRs opened with the built-in GITHUB_TOKEN do not
+  # trigger workflows.
+  workflow_dispatch:
 
 jobs:
   check:
