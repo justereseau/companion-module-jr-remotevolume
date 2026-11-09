@@ -3,6 +3,7 @@ import { test } from 'node:test'
 import {
 	appId,
 	findApp,
+	findOutputDevice,
 	parseBackendVersion,
 	parseMessage,
 	parseRawMessage,
@@ -38,7 +39,7 @@ test('partial state broadcasts only carry what changed', () => {
 })
 
 test('unknown keys (future lists and fields) are ignored', () => {
-	const parsed = parseMessage({ volume: 10, outputDevices: [], somethingNew: { a: 1 } })
+	const parsed = parseMessage({ volume: 10, futureList: [], somethingNew: { a: 1 } })
 	assert.deepEqual(parsed.state, { volume: 10 })
 })
 
@@ -168,4 +169,39 @@ test('adjust steps: signed whole numbers, a trailing % allowed, anything else re
 	assert.equal(volumeStep('%'), null)
 	assert.equal(volumeStep('loud'), null)
 	assert.equal(volumeStep(undefined), null)
+})
+
+test('output devices: the list, the id and their null values are parsed', () => {
+	assert.deepEqual(
+		parseMessage({
+			outputDeviceId: 'a',
+			outputDevices: [{ id: 'a', name: 'Speakers', default: true }, { id: 'b' }, { name: 'no id' }, 'junk', { id: '' }],
+		}).state,
+		{
+			outputDeviceId: 'a',
+			outputDevices: [
+				{ id: 'a', name: 'Speakers', default: true },
+				{ id: 'b', name: 'b', default: false },
+			],
+		},
+	)
+	assert.deepEqual(parseMessage({ outputDeviceId: null, outputDevices: null }).state, {
+		outputDeviceId: null,
+		outputDevices: null,
+	})
+	assert.deepEqual(parseMessage({ outputDeviceId: 7, outputDevices: 'x' }).state, {})
+	// The reply to getOutputDevices has the same shape.
+	assert.deepEqual(parseMessage({ outputDevices: [] }).state, { outputDevices: [] })
+})
+
+test('output devices: found by id, then by exact name', () => {
+	const devices = [
+		{ id: 'x', name: 'y', default: false },
+		{ id: 'y', name: 'z', default: true },
+		{ id: 'w', name: 'z', default: false },
+	]
+	assert.equal(findOutputDevice(devices, 'y').id, 'y', 'the id wins')
+	assert.equal(findOutputDevice(devices, 'z').id, 'y', 'the first of a shared name')
+	assert.equal(findOutputDevice(devices, 'Z'), undefined)
+	assert.equal(findOutputDevice(null, 'z'), undefined)
 })

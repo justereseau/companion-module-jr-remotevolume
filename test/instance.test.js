@@ -775,3 +775,131 @@ test('adjust volume: large steps set the volume, zero does nothing, text is refu
 		['warn', 'Ignoring Adjust Volume: "" is not a number (e.g. 5 or -5)'],
 	])
 })
+
+const DEVICE_CAPABILITIES = { ...CAPABILITIES, outputDevices: { list: true, select: true } }
+const DEVICE_LIST = [
+	{ id: 'dev-a', name: 'Speakers', default: true },
+	{ id: 'dev-b', name: 'Headset', default: false },
+]
+const DEVICE_STATE = {
+	volume: 40,
+	muted: false,
+	outputDevice: 'Speakers',
+	outputDeviceId: 'dev-a',
+	outputDevices: DEVICE_LIST,
+	capabilities: DEVICE_CAPABILITIES,
+}
+
+test('the device fields reach the variables, the feedbacks and the definitions', async () => {
+	const { inst, server } = await connect({}, { initial: DEVICE_STATE })
+	await until(() => inst.outputDevices !== null, 'the initial state')
+	assert.equal(inst.vars.output_audio_device_id, 'dev-a')
+	assert.equal(inst.vars.output_audio_devices, 'Speakers, Headset')
+	assert.deepEqual(
+		inst.actionDefs.device_set_default.options[0].choices.map((c) => c.label),
+		['Speakers', 'Headset'],
+	)
+	assert.ok(inst.feedbackChecks.some((ids) => ids.includes('device_is_default')))
+	assert.equal(inst.feedbackDefs.device_is_default.callback({ options: { device: 'dev-a' } }), true)
+
+	// Another default: the feedback follows, the definitions stay.
+	const definitions = inst.actionDefs
+	server.broadcast({ outputDeviceId: 'dev-b' })
+	server.broadcast({
+		outputDevices: [
+			{ id: 'dev-a', name: 'Speakers', default: false },
+			{ id: 'dev-b', name: 'Headset', default: true },
+		],
+	})
+	await until(() => inst.outputDevices?.[1].default === true, 'the new default')
+	assert.equal(inst.vars.output_audio_device_id, 'dev-b')
+	assert.equal(inst.feedbackDefs.device_is_default.callback({ options: { device: 'dev-b' } }), true)
+	assert.equal(inst.actionDefs, definitions, 'only the default changed')
+
+	// A device plugged in: the dropdowns get it.
+	server.broadcast({ outputDevices: [...DEVICE_LIST, { id: 'dev-c', name: 'HDMI', default: false }] })
+	await until(() => inst.outputDevices?.length === 3, 'the longer list')
+	assert.equal(inst.vars.output_audio_devices, 'Speakers, Headset, HDMI')
+	assert.equal(inst.actionDefs.device_cycle.options[0].choices.length, 3)
+
+	// The app can no longer list them.
+	server.broadcast({ outputDevices: null, outputDeviceId: null })
+	await until(() => inst.outputDevices === null, 'no list')
+	assert.equal(inst.vars.output_audio_devices, '')
+	assert.equal(inst.vars.output_audio_device_id, '')
+})
+
+test('losing the connection forgets the devices', async () => {
+	const { inst, server } = await connect({}, { initial: DEVICE_STATE })
+	await until(() => inst.outputDevices !== null, 'the initial state')
+	server.dropClients()
+	await until(() => inst.outputDevices === null, 'the close')
+	assert.equal(inst.vars.output_audio_devices, '')
+	assert.equal(inst.vars.output_audio_device_id, '')
+	assert.deepEqual(inst.actionDefs.device_cycle.options[0].choices, [])
+})
+
+test('the device actions send their payloads', async () => {
+	const { inst, server } = await connect({}, { initial: DEVICE_STATE })
+	await until(() => inst.outputDevices !== null, 'the initial state')
+	inst.setOutputDevice('dev-b')
+	inst.setOutputDevice(' Headset ')
+	inst.cycleOutputDevice([])
+	inst.cycleOutputDevice(undefined)
+	inst.cycleOutputDevice(['dev-a', 'Headset'])
+	await until(() => server.received.length === 5, 'the actions')
+	assert.deepEqual(server.received, [
+		{ action: 'setOutputDevice', device: 'dev-b' },
+		{ action: 'setOutputDevice', device: 'Headset' },
+		{ action: 'cycleOutputDevice' },
+		{ action: 'cycleOutputDevice' },
+		{ action: 'cycleOutputDevice', devices: ['dev-a', 'Headset'] },
+	])
+	inst.setOutputDevice('  ')
+	assert.equal(inst.logs.at(-1)[1], 'No device chosen, ignoring action setOutputDevice')
+})
+
+test('a device error from the app is logged', async () => {
+	const { inst, server } = await connect({}, { initial: DEVICE_STATE })
+	await until(() => inst.outputDevices !== null, 'the initial state')
+	server.broadcast({ action: 'setOutputDevice', response: { error: 'Device not found' } })
+	await until(() => inst.logs.length > 0, 'the log')
+	assert.deepEqual(inst.logs.at(-1), ['warn', 'Remote Volume reported an error: Device not found'])
+})
+
+test('device actions are skipped and logged once where the app cannot select devices', async () => {
+	const { inst, server } = await connect()
+	await until(() => inst.capabilities !== null, 'the initial state')
+	inst.setOutputDevice('dev-b')
+	inst.cycleOutputDevice([])
+	assert.deepEqual(
+		inst.logs.filter(([, message]) => message.includes('output devices')),
+		[['warn', 'The Remote Volume app cannot select output devices on this computer. Ignoring setOutputDevice']],
+	)
+	await new Promise((resolve) => setTimeout(resolve, 50))
+	assert.deepEqual(server.received, [])
+})
+
+test('a v1 app has no devices and gets no device actions', async () => {
+	const { inst, server } = await connect({}, { initial: { volume: 20, muted: false, outputDevice: 'Headphones' } })
+	await until(() => 'output_audio_device_name' in inst.vars, 'the initial state')
+	assert.equal(inst.outputDevices, null)
+	assert.equal(inst.feedbackDefs.device_is_default.callback({ options: { device: 'Headphones' } }), false)
+	inst.cycleOutputDevice([])
+	inst.setOutputDevice('Headphones')
+	assert.deepEqual(
+		inst.logs.filter(([, message]) => message.includes('Device selection')),
+		[['warn', 'Device selection needs a newer Remote Volume app, ignoring cycleOutputDevice']],
+	)
+	await new Promise((resolve) => setTimeout(resolve, 50))
+	assert.deepEqual(server.received, [])
+})
+
+test('device actions are ignored while not connected', async () => {
+	const { inst, server } = await connect({}, { initial: DEVICE_STATE })
+	await until(() => inst.outputDevices !== null, 'the initial state')
+	server.dropClients()
+	await until(() => !inst.isConnected(), 'the close')
+	inst.cycleOutputDevice([])
+	assert.deepEqual(inst.logs.at(-1), ['warn', 'Not connected, ignoring action cycleOutputDevice'])
+})

@@ -46,6 +46,29 @@ export async function chosenApp(options, context) {
 	return options.app
 }
 
+const deviceChoices = (self) =>
+	(Array.isArray(self.outputDevices) ? self.outputDevices : []).map((device) => ({
+		id: device.id,
+		label: device.name,
+	}))
+
+/**
+ * The device picker of the device action and feedback: a dropdown of the output devices there are
+ * right now. A name can also be typed, for a device that is unplugged now.
+ */
+export function deviceOption(self) {
+	const choices = deviceChoices(self)
+	return {
+		type: 'dropdown',
+		id: 'device',
+		label: 'Device',
+		default: choices[0]?.id ?? '',
+		allowCustom: true,
+		tooltip: 'An output device, or type its exact name for a device that is unplugged now.',
+		choices,
+	}
+}
+
 /** The step of the Adjust Volume actions: a signed number, variables allowed. */
 const STEP_OPTION = {
 	type: 'textinput',
@@ -72,6 +95,9 @@ const step = (options, context) => context.parseVariablesInString(String(options
 
 const APP_NOTE =
 	'Needs per-app audio in the Remote Volume app (protocol v2, on Windows or Linux); otherwise nothing is sent.'
+
+const DEVICE_NOTE =
+	'Needs device selection in the Remote Volume app (protocol v2; not on Linux without PulseAudio or PipeWire); otherwise nothing is sent.'
 
 export function getActionDefinitions(self) {
 	return {
@@ -149,6 +175,31 @@ export function getActionDefinitions(self) {
 					case 'toggle':
 						self.toggleAppMute(app)
 				}
+			},
+		},
+		device_set_default: {
+			name: 'Device: Set Default Output',
+			description: `Make this device the default output of the computer. Volume and mute follow it. ${DEVICE_NOTE}`,
+			options: [deviceOption(self)],
+			callback: async (action) => {
+				self.setOutputDevice(action.options.device)
+			},
+		},
+		device_cycle: {
+			name: 'Device: Cycle',
+			description: `Switch to the next output device, e.g. to toggle between speakers and headset. ${DEVICE_NOTE}`,
+			options: [
+				{
+					type: 'multidropdown',
+					id: 'devices',
+					label: 'Devices',
+					default: [],
+					tooltip: 'The devices to go through, in this order. None selected: all of them.',
+					choices: deviceChoices(self),
+				},
+			],
+			callback: async (action) => {
+				self.cycleOutputDevice(action.options.devices)
 			},
 		},
 		media_key: {

@@ -118,6 +118,48 @@ export function getPresetDefinitions(self) {
 		})
 	}
 
+	// Device presets for the output devices there are right now; they follow the list as it changes.
+	const devices = self.outputDevices ?? []
+	const isDefault = (device, style) => ({
+		feedbackId: 'device_is_default',
+		options: { device: device.id },
+		style,
+	})
+	if (devices.length >= 2) {
+		const [first, second] = devices
+		presets.push({
+			category: 'Output device',
+			name: `Toggle: ${first.name} / ${second.name}`,
+			type: 'button',
+			style: {
+				text: 'Output\ndevice',
+				size: '14',
+				bgcolor: combineRgb(0, 0, 0),
+				color: combineRgb(255, 255, 255),
+			},
+			steps: [{ down: [{ actionId: 'device_cycle', options: { devices: [first.id, second.id] } }], up: [] }],
+			feedbacks: [
+				isDefault(first, { text: first.name, bgcolor: combineRgb(0, 96, 0), color: combineRgb(255, 255, 255) }),
+				isDefault(second, { text: second.name, bgcolor: combineRgb(0, 0, 128), color: combineRgb(255, 255, 255) }),
+			],
+		})
+	}
+	for (const device of devices) {
+		presets.push({
+			category: 'Output device',
+			name: device.name,
+			type: 'button',
+			style: {
+				text: device.name,
+				size: '14',
+				bgcolor: combineRgb(0, 0, 0),
+				color: combineRgb(255, 255, 255),
+			},
+			steps: [{ down: [{ actionId: 'device_set_default', options: { device: device.id } }], up: [] }],
+			feedbacks: [isDefault(device, { bgcolor: combineRgb(0, 96, 0), color: combineRgb(255, 255, 255) })],
+		})
+	}
+
 	// Per-app presets for the apps playing audio right now; they follow the list as it changes.
 	// Each kind has its own category and text, so the two buttons of one app are told apart.
 	const label = self.label ?? 'jr-remotevolume'

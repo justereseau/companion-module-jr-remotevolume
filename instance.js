@@ -21,8 +21,11 @@ export class RemoteVolumeInstance extends InstanceBase {
 		this.backendVersion = null
 		// Apps playing audio (protocol v2); null while unknown, unsupported or turned off in the app.
 		this.apps = null
+		// Output devices (protocol v2); null while unknown or unsupported.
+		this.outputDevices = null
 		// The ids and names the current definitions were built from, to rebuild them only when those change.
 		this.appsSignature = appsSignature(null)
+		this.devicesSignature = appsSignature(null)
 		// Features already reported as unsupported, so a busy button does not flood the log.
 		this.unsupportedLogged = new Set()
 
@@ -83,6 +86,7 @@ export class RemoteVolumeInstance extends InstanceBase {
 		this.capabilities = null
 		this.setBackendVersion(null)
 		this.setApps(null)
+		this.setOutputDevices(null)
 		this.unsupportedLogged.clear()
 	}
 
@@ -131,6 +135,7 @@ export class RemoteVolumeInstance extends InstanceBase {
 			this.capabilities = null
 			this.setBackendVersion(null)
 			this.setApps(null)
+			this.setOutputDevices(null)
 			// A refused key will not work on the next try either: wait for a config change.
 			if (this.authFailed) return
 			this.updateStatus(InstanceStatus.Disconnected, `Connection closed with code ${event.code}`)
@@ -313,6 +318,49 @@ export class RemoteVolumeInstance extends InstanceBase {
 		this.sendAction(message)
 	}
 
+	/**
+	 * Sends a device action (protocol v2) when the app can select devices. Otherwise logs once and
+	 * sends nothing: a v1 app would answer `Invalid action`.
+	 */
+	sendDeviceAction(message) {
+		const { action } = message
+		if (!this.isConnected()) {
+			this.log('warn', `Not connected, ignoring action ${action}`)
+			return
+		}
+		if (this.capabilities?.outputDevices?.select !== true) {
+			if (!this.unsupportedLogged.has('devices')) {
+				this.unsupportedLogged.add('devices')
+				this.log(
+					'warn',
+					this.capabilities === null
+						? `Device selection needs a newer Remote Volume app, ignoring ${action}`
+						: `The Remote Volume app cannot select output devices on this computer. Ignoring ${action}`,
+				)
+			}
+			return
+		}
+		this.sendAction(message)
+	}
+
+	/** @param {string} device The id or exact name of an output device. */
+	setOutputDevice(device) {
+		const target = String(device ?? '').trim()
+		if (target === '') {
+			this.log('warn', 'No device chosen, ignoring action setOutputDevice')
+			return
+		}
+		this.sendDeviceAction({ action: 'setOutputDevice', device: target })
+	}
+
+	/** @param {string[] | undefined} devices Ids or exact names to go through; all devices when empty. */
+	cycleOutputDevice(devices) {
+		const targets = (Array.isArray(devices) ? devices : []).map((device) => String(device).trim()).filter(Boolean)
+		this.sendDeviceAction(
+			targets.length > 0 ? { action: 'cycleOutputDevice', devices: targets } : { action: 'cycleOutputDevice' },
+		)
+	}
+
 	setAppVolume(app, vol) {
 		this.sendAppAction('setAppVolume', 'volume', app, vol)
 	}
@@ -361,6 +409,27 @@ export class RemoteVolumeInstance extends InstanceBase {
 		this.checkFeedbacks('app_muted', 'app_running')
 	}
 
+	/**
+	 * Applies a new `outputDevices` list: variables and feedbacks always, the definitions only when a
+	 * device appeared, went away or was renamed (not when only the default one changed).
+	 *
+	 * @param {import('./protocol.js').OutputDevice[] | null} devices
+	 */
+	setOutputDevices(devices) {
+		if (this.outputDevices === null && devices === null) return
+		this.outputDevices = devices
+		const signature = appsSignature(devices)
+		if (signature !== this.devicesSignature) {
+			this.devicesSignature = signature
+			this.updateDefinitions()
+		}
+		const values = { output_audio_devices: (devices ?? []).map((device) => device.name).join(', ') }
+		// Without a list there is no telling which device is active either.
+		if (devices === null) values.output_audio_device_id = ''
+		this.setVariableValues(values)
+		this.checkFeedbacks('device_is_default')
+	}
+
 	/** @param {string | null} version The version the app reported, null when there is none. */
 	setBackendVersion(version) {
 		if (this.backendVersion === version) return
@@ -385,6 +454,12 @@ export class RemoteVolumeInstance extends InstanceBase {
 		}
 		if ('apps' in state) {
 			this.setApps(state.apps)
+		}
+		if ('outputDevices' in state) {
+			this.setOutputDevices(state.outputDevices)
+		}
+		if ('outputDeviceId' in state) {
+			this.setVariableValues({ output_audio_device_id: state.outputDeviceId ?? '' })
 		}
 		if ('muted' in state) {
 			this.muted = state.muted
@@ -417,7 +492,7 @@ export class RemoteVolumeInstance extends InstanceBase {
 	}
 }
 
-/** @param {import('./protocol.js').App[] | null} apps */
-function appsSignature(apps) {
-	return JSON.stringify((apps ?? []).map((app) => [app.id, app.name]))
+/** @param {{ id: string, name: string }[] | null} entries Apps or output devices. */
+function appsSignature(entries) {
+	return JSON.stringify((entries ?? []).map((entry) => [entry.id, entry.name]))
 }

@@ -1,5 +1,5 @@
-import { appOptions, chosenApp } from './actions.js'
-import { findApp } from './protocol.js'
+import { appOptions, chosenApp, deviceOption } from './actions.js'
+import { findApp, findOutputDevice } from './protocol.js'
 
 export function getFeedbackDefinitions(self) {
 	const app = async (feedback, context) => findApp(self.apps, await chosenApp(feedback.options, context))
@@ -12,6 +12,13 @@ export function getFeedbackDefinitions(self) {
 			callback: (feedback) => {
 				return self.muted === true
 			},
+		},
+		device_is_default: {
+			type: 'boolean',
+			name: 'Device is default',
+			description: 'True while this device is the default output, e.g. to show speakers or headset on a toggle button',
+			options: [deviceOption(self)],
+			callback: (feedback) => findOutputDevice(self.outputDevices, feedback.options.device)?.default === true,
 		},
 		app_muted: {
 			type: 'boolean',
