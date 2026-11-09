@@ -36,6 +36,19 @@ If the app refuses the key, the connection shows an authentication failure and d
 
 They replace the former Increase Volume and Decrease Volume actions; buttons that used those are converted when the module updates.
 
+### Output devices
+
+With a Remote Volume app that supports it, the module can switch the default output device of the computer. Volume and mute always apply to the default device, so they follow the switch.
+
+- **Actions:** `Device: Set Default Output`, and `Device: Cycle` to go to the next device among those you select (none selected: all of them).
+- **Feedback:** `Device is default`, for example to show speakers or headset on a toggle button.
+- **Variables:** `output_audio_device_name`, `output_audio_device_id`, and `output_audio_devices` (the names of all devices).
+- **Presets** (category _Output device_): a toggle between the first two devices, with a feedback on each, and one button per device. They follow the devices the computer has now. Edit the toggle's action to pick other devices.
+
+A device has an **id** and a **name**. The dropdowns list the devices by name and keep the id, which is stable but specific to the computer and the OS. A device that is unplugged now is not in the list: type its **exact name** in `Device: Set Default Output` or `Device is default`. If several devices share a name, the first one is used. If the device is not there when the button is pressed, Remote Volume answers `Device not found` and the log shows it; `Device: Cycle` skips the devices that are missing.
+
+It works on Windows, macOS, and Linux with PulseAudio or PipeWire. On a Linux computer with only ALSA, or with an older Remote Volume app, the module sends nothing and logs it once.
+
 ### Media keys
 
 `Media Key` presses Play / Pause, Next track or Previous track on the computer, like its keyboard's media keys: the computer sends it to the media player it picks (on Windows, the one shown in the volume flyout; on Linux, the player that is playing, else a paused one). The presets (category _Media_) have one button for each key.

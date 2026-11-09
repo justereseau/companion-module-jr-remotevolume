@@ -7,14 +7,15 @@
  *  - a (possibly partial) state object: `{"volume":40,"muted":false,"outputDevice":"Speakers"}`.
  *    The state sent right after connecting may end with `"capabilities":{...}` (protocol v2).
  *    Protocol v2 also sends `"apps":[{"id":"spotify","name":"Spotify","volume":80,"muted":false}]`,
- *    always the whole list.
+ *    always the whole list. It also sends `"outputDeviceId":"..."` and
+ *    `"outputDevices":[{"id":"...","name":"Speakers","default":true}]`, also always the whole list.
  *  - an action reply: `{"action":"mute","response":{...}}`, where `response.error` reports a failure.
  *  - an error without an action: `{"error":"..."}`.
  */
 
 /**
  * @typedef {object} ParsedMessage
- * @property {{ volume?: number, muted?: boolean, outputDevice?: string, apps?: App[] | null }} state Fields to apply to the module state.
+ * @property {{ volume?: number, muted?: boolean, outputDevice?: string, outputDeviceId?: string | null, outputDevices?: OutputDevice[] | null, apps?: App[] | null }} state Fields to apply to the module state.
  * @property {object | undefined} capabilities The `capabilities` object (protocol v2), if the message carried one.
  * @property {string | undefined} error An error text reported by the app, if any.
  */
@@ -40,6 +41,12 @@ export function parseMessage(message) {
 	if (typeof payload.muted === 'boolean') result.state.muted = payload.muted
 	if (typeof payload.volume === 'number') result.state.volume = payload.volume
 	if (typeof payload.outputDevice === 'string') result.state.outputDevice = payload.outputDevice
+	if (typeof payload.outputDeviceId === 'string' || payload.outputDeviceId === null) {
+		result.state.outputDeviceId = payload.outputDeviceId
+	}
+	if (Array.isArray(payload.outputDevices)) result.state.outputDevices = parseOutputDevices(payload.outputDevices)
+	// `null`: the app had a list and can no longer list the devices.
+	else if (payload.outputDevices === null) result.state.outputDevices = null
 	if (Array.isArray(payload.apps)) result.state.apps = parseApps(payload.apps)
 	// `null`: the app had a list and per-app audio is now off or unavailable.
 	else if (payload.apps === null) result.state.apps = null
@@ -113,6 +120,44 @@ export function findApp(apps, target) {
 	const id = appId(target)
 	const name = target.trim().toLowerCase()
 	return apps.find((app) => app.id === id) ?? apps.find((app) => app.name.toLowerCase() === name)
+}
+
+/**
+ * @typedef {object} OutputDevice
+ * @property {string} id Stable and OS-specific.
+ * @property {string} name Display name.
+ * @property {boolean} default Whether it is the default output device now.
+ */
+
+/**
+ * Keeps the well-formed entries of an `outputDevices` list (protocol v2), skipping the others.
+ *
+ * @param {unknown[]} list
+ * @returns {OutputDevice[]}
+ */
+export function parseOutputDevices(list) {
+	const devices = []
+	for (const entry of list) {
+		if (!isObject(entry) || typeof entry.id !== 'string' || entry.id === '') continue
+		devices.push({
+			id: entry.id,
+			name: typeof entry.name === 'string' && entry.name !== '' ? entry.name : entry.id,
+			default: entry.default === true,
+		})
+	}
+	return devices
+}
+
+/**
+ * Finds an output device the way the Remote Volume app does: by id, then by exact name.
+ *
+ * @param {OutputDevice[] | null} devices
+ * @param {string} target
+ * @returns {OutputDevice | undefined}
+ */
+export function findOutputDevice(devices, target) {
+	if (!devices) return undefined
+	return devices.find((device) => device.id === target) ?? devices.find((device) => device.name === target)
 }
 
 /** The protocol v2 action of each media key (capability `media.keys`). */

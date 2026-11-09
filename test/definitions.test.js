@@ -12,7 +12,12 @@ const APPS = [
 	{ id: 'spotify', name: 'Spotify', volume: 80, muted: false },
 	{ id: 'chrome', name: 'Google Chrome', volume: 30, muted: true },
 ]
-const withApps = { apps: APPS, label: 'rv' }
+const DEVICES = [
+	{ id: 'dev-a', name: 'Speakers', default: true },
+	{ id: 'dev-b', name: 'Headset', default: false },
+	{ id: 'dev-c', name: 'HDMI', default: false },
+]
+const withApps = { apps: APPS, outputDevices: DEVICES, label: 'rv' }
 const actions = getActionDefinitions(withApps)
 const feedbacks = getFeedbackDefinitions(withApps)
 const presets = getPresetDefinitions(withApps)
@@ -76,6 +81,8 @@ test('action callbacks pass the options on to the instance', async () => {
 	await run('app_mute', { ...byVariable, mute: 'mute' })
 	await run('app_mute', { app: 'chrome', mute: 'unmute' })
 	await run('app_mute', { app: 'chrome', mute: 'toggle' })
+	await run('device_set_default', { device: 'dev-b' })
+	await run('device_cycle', { devices: ['dev-a', 'dev-b'] })
 	await run('media_key', { key: 'next' })
 	await run('function_key', { key: 13 })
 	assert.deepEqual(calls, [
@@ -90,6 +97,8 @@ test('action callbacks pass the options on to the instance', async () => {
 		['muteApp', 'discord'],
 		['unmuteApp', 'chrome'],
 		['toggleAppMute', 'chrome'],
+		['setOutputDevice', 'dev-b'],
+		['cycleOutputDevice', ['dev-a', 'dev-b']],
 		['pressMediaKey', 'next'],
 		['pressFunctionKey', 13],
 	])
@@ -193,6 +202,68 @@ test('the app feedbacks find the app by id, name or variable, and are false whil
 	assert.equal(await app_muted.callback(byVariable, CONTEXT), true)
 })
 
+test('the device pickers list the devices by name, and the single one accepts a typed name', () => {
+	const choices = [
+		{ id: 'dev-a', label: 'Speakers' },
+		{ id: 'dev-b', label: 'Headset' },
+		{ id: 'dev-c', label: 'HDMI' },
+	]
+	for (const option of [actions.device_set_default.options[0], feedbacks.device_is_default.options[0]]) {
+		assert.equal(option.type, 'dropdown')
+		assert.equal(option.allowCustom, true)
+		assert.equal(option.default, 'dev-a')
+		assert.deepEqual(option.choices, choices)
+	}
+	const cycle = actions.device_cycle.options[0]
+	assert.equal(cycle.type, 'multidropdown')
+	assert.deepEqual(cycle.default, [], 'nothing selected means all devices')
+	assert.deepEqual(cycle.choices, choices)
+	const empty = getActionDefinitions({})
+	assert.equal(empty.device_set_default.options[0].default, '')
+	assert.deepEqual(empty.device_set_default.options[0].choices, [])
+	assert.deepEqual(empty.device_cycle.options[0].choices, [])
+})
+
+test('the device feedback finds the device by id or exact name, and is false while unknown', () => {
+	const self = { outputDevices: null }
+	const { device_is_default } = getFeedbackDefinitions(self)
+	const check = (device) => device_is_default.callback({ options: { device } })
+	assert.equal(check('dev-a'), false)
+	self.outputDevices = DEVICES
+	assert.equal(check('dev-a'), true)
+	assert.equal(check('Speakers'), true)
+	assert.equal(check('dev-b'), false)
+	assert.equal(check('Headset'), false)
+	assert.equal(check('speakers'), false, 'names are exact')
+	assert.equal(check('unplugged'), false)
+})
+
+test('presets: a toggle between the first two devices with a feedback on each, and one button per device', () => {
+	const devices = presets.filter((p) => p.category === 'Output device')
+	assert.deepEqual(
+		devices.map((p) => p.name),
+		['Toggle: Speakers / Headset', 'Speakers', 'Headset', 'HDMI'],
+	)
+	const [toggle, speakers] = devices
+	assert.deepEqual(toggle.steps[0].down, [{ actionId: 'device_cycle', options: { devices: ['dev-a', 'dev-b'] } }])
+	assert.deepEqual(
+		toggle.feedbacks.map((f) => [f.feedbackId, f.options.device, f.style.text]),
+		[
+			['device_is_default', 'dev-a', 'Speakers'],
+			['device_is_default', 'dev-b', 'Headset'],
+		],
+	)
+	assert.deepEqual(speakers.steps[0].down, [{ actionId: 'device_set_default', options: { device: 'dev-a' } }])
+	assert.equal(speakers.feedbacks[0].options.device, 'dev-a')
+	// One device has nothing to toggle with; no list, no presets.
+	const one = getPresetDefinitions({ outputDevices: DEVICES.slice(0, 1) }).filter((p) => p.category === 'Output device')
+	assert.deepEqual(
+		one.map((p) => p.name),
+		['Speakers'],
+	)
+	assert.equal(getPresetDefinitions({}).filter((p) => p.category === 'Output device').length, 0)
+})
+
 test('the function key picker lists F1 to F24, F13 by default', () => {
 	const option = actions.function_key.options[0]
 	assert.equal(option.default, 13)
@@ -254,7 +325,15 @@ test('presets: one button per function key, F1 to F24', () => {
 test('variable ids and config field ids are as documented and unique', () => {
 	assert.deepEqual(
 		variables.map((v) => v.variableId),
-		['muted', 'volume', 'output_audio_device_name', 'apps', 'backend_version'],
+		[
+			'muted',
+			'volume',
+			'output_audio_device_name',
+			'output_audio_device_id',
+			'output_audio_devices',
+			'apps',
+			'backend_version',
+		],
 	)
 	assert.deepEqual(
 		getVariableDefinitions([{ id: 'my app', name: 'My App' }])

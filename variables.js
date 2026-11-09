@@ -14,6 +14,14 @@ export const variables = [
 		variableId: 'output_audio_device_name',
 	},
 	{
+		name: 'Id of the currently active Audio Device',
+		variableId: 'output_audio_device_id',
+	},
+	{
+		name: 'Output devices (comma-separated names)',
+		variableId: 'output_audio_devices',
+	},
+	{
 		name: 'Apps playing audio (comma-separated names)',
 		variableId: 'apps',
 	},
